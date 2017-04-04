@@ -2,8 +2,8 @@
 #include <string>
 #include <stdexcept>
 
-#include "config.h"
-#include "tear.h"
+#include "Config.h"
+#include "Encryption.h"
 
 #ifdef _WIN32
 #	include <windows.h>

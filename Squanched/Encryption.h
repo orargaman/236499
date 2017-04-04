@@ -1,7 +1,6 @@
 #define DEBUG
 
-#ifndef TEAR_H
-#define TEAR_H
+#pragma comment(lib, "cryptopp")
 
 #define EMPTY ""
 
@@ -24,4 +23,3 @@ struct crypt_data {
 	byte iv[IV_LEN];
 };
 
-#endif
