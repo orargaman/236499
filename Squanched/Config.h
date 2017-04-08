@@ -7,7 +7,7 @@
 /*
 * Key length in bytes, default is 32 (256 bits)
 */
-#define KEY_LEN 32 // 256 bits
+#define KEY_LEN (256/8) // 256 bits
 
 /*
 * URL to add.php

@@ -3,23 +3,11 @@
 #pragma comment(lib, "cryptopp")
 
 #define EMPTY ""
-
+/*
 #include <boost/filesystem/operations.hpp>
-
-#include <cryptopp/default.h>
-#include <cryptopp/osrng.h>
-#include <cryptopp/cryptlib.h>
-#include <cryptopp/hex.h>
-#include <cryptopp/filters.h>
-#include <cryptopp/files.h>
-#include <cryptopp/aes.h>
-#include <cryptopp/ccm.h>
+*/
 #include "Config.h"
 
-#define IV_LEN CryptoPP::AES::BLOCKSIZE
+#define IV_LEN (128/8)
 
-struct crypt_data {
-	byte key[KEY_LEN];
-	byte iv[IV_LEN];
-};
 

