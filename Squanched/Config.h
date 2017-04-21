@@ -25,3 +25,5 @@
 #define NOTIFY_FILENAME "note.html"
 
 #define IV_LEN (128/8)
+
+//#define ENC

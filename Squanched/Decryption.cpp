@@ -1,7 +1,7 @@
 
 #include "Decryption.h"
-
-void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD CipherTextLength)
+#ifndef ENC
+void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD CipherTextLength, BYTE paddingSize)
 {
 	DWORD status;
 	PBYTE   TempInitVector = NULL;
@@ -54,7 +54,7 @@ void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Ciphe
 	if (NULL == plainText) {
 		//TODO cleanup
 	}
-	status = BCryptEncrypt(keyHandle, CipherText, CipherTextLength, NULL, tmpIv, IV_LEN, plainText, plainSize, &resSize, BCRYPT_BLOCK_PADDING);
+	status = BCryptDecrypt(keyHandle, CipherText, CipherTextLength, NULL, tmpIv, IV_LEN, plainText, plainSize, &resSize, BCRYPT_BLOCK_PADDING);
 	if (!NT_SUCCESS(status)) {
 		//TODO cleanup
 	}
@@ -69,14 +69,31 @@ void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Ciphe
 	}
 	
 	std::ofstream ofile(plainPath.c_str(), std::ios::binary);
-	ofile.write((char*)iv, IV_LEN);
-	ofile.write((char*)key, KEY_LEN);
-	ofile.write((char*)plainText, plainSize);
+	ofile.write((char*)plainText, plainSize - paddingSize);
 	ofile.close();
 
-	delete CipherText;
-
-
-
-
 }
+
+int main()
+{
+	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans1.txt" + string(LOCKED_EXTENSION);
+	BYTE paddingSize = 1;
+	PBYTE iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	PBYTE key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
+	size_t cipherSize = getFileSize(path) - IV_LEN - KEY_LEN;
+	PBYTE cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
+	std::ifstream ifile;
+	ifile.open(path, std::ios::binary);
+#ifdef DEBUG
+	cout << "file was" << (ifile.is_open() ? "" : "NOT") << "openned successfully" << endl;
+#endif
+	ifile.read((char*)iv, IV_LEN);
+	ifile.read((char*)key, KEY_LEN);
+	ifile.read((char*)cipher, cipherSize);
+	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
+
+	//HeapFree(cipher);
+	return 0;
+}
+
+#endif

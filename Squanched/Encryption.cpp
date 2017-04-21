@@ -1,7 +1,5 @@
-
 #include "Encryption.h"
-
-
+#ifdef ENC
 
 using namespace boost::filesystem;
 using std::string;
@@ -219,3 +217,4 @@ void encrypt(string path)
 //void send() {
 //
 //}
+#endif
