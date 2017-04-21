@@ -1,25 +1,7 @@
-#include <iostream>
-#include <string>
-#include <stdexcept>
 
-
-#include "config.h"
 #include "Encryption.h"
-#include <fstream>
-#include "Utils.h"
-#ifdef _WIN32
-#	include <windows.h>
-#	include <Urlmon.h>
-#	include <Lmcons.h>
-#	include <winternl.h>
-//#	include <ntstatus.h>
-//#	include <winerror.h>
-#	include <bcrypt.h>
-#	include <cstdio>
-#	include <sal.h>
-#else
-#	include <pwd.h>
-#endif
+
+
 
 using namespace boost::filesystem;
 using std::string;
@@ -111,8 +93,6 @@ void encrypt(string path)
 #endif
 	
 
-
-	//TODO get AES HANDLE , add CBC property, set KEY handle
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
 	status = BCryptOpenAlgorithmProvider(&aesHandle, BCRYPT_AES_ALGORITHM, NULL, 0);
 	if(!NT_SUCCESS(status)) {
@@ -153,7 +133,9 @@ void encrypt(string path)
 		//cleanup
 	}
 	status = BCryptEncrypt(keyHandle, plainText, plainTextLen, NULL, tmpIv, IV_LEN, cipherText, cipherSize, &resSize, BCRYPT_BLOCK_PADDING);
-
+	if (!NT_SUCCESS(status)) {
+		//TODO cleanup
+	}
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif

