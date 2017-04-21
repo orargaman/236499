@@ -26,4 +26,9 @@
 
 #define IV_LEN (128/8)
 
+/*
+ * Num of digits to represent IV size in bytes
+ */
+#define IV_DIGITS_NUM 2
+
 //#define ENC
