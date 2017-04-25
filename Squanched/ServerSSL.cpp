@@ -14,7 +14,7 @@ int main3(int argc, char** argv)
 	WOLFSSL_CTX* ctx;
 	WOLFSSL* ssl;
 	int n;
-	char buf[MAX_LINE];
+	char buf[MAX_LINE]={0};
 	WOLFSSL_METHOD* method;
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	/* Initialize wolfSSL library */
@@ -37,7 +37,7 @@ int main3(int argc, char** argv)
 		SSL_FILETYPE_PEM) != SSL_SUCCESS)
 		err_sys("Error loading certs/server-key.pem");
 
-	tcp_accept(&listenfd, &connfd, NULL, SERV_PORT, 0, 0, 0, 0, 0);
+	tcp_accept(&listenfd, &connfd, NULL, SERV_PORT, 0, 0, 0, 0, 1);
 
 	/* Create wolfSSL object */
 	if ((ssl = wolfSSL_new(ctx)) == NULL)
