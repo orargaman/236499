@@ -22,7 +22,7 @@ int main()
 	memset(&servAddr, 0, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_port = htons(SERV_PORT);
-	servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	servAddr.sin_addr.s_addr = inet_addr("52.166.61.245");
 
 	/* connect to socket */
 	iResult = connect(sockfd, (struct sockaddr *) &servAddr, sizeof(servAddr));
