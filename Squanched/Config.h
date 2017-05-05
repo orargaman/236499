@@ -31,6 +31,7 @@
  */
 #define IV_DIGITS_NUM 2
 
+
 //#define ENC
 
 /*
@@ -124,3 +125,10 @@ BAwiMXFqSMiru+jO+mcVGjqCmEMztQ4fHon4N94b5rWg9KKLtxyQuphtlCEIgF3z\n\
 v2atyXIoempI7s9jaTGMxY5m2kt4ZegDOkv4zEJU01JcLQSuJofhfkDLRUEWS26j\n\
 Lkp2vSl/HFM3Bq3pW2rWt06UonzorE6mUD4rMp5oQhvkWWdh6seaUZwcVaN3dg==\n\
 -----END CERTIFICATE-----"
+
+#ifdef DEBUG
+#define ROOT_DIR R"(C:\rans\236499\Squanched\Debug\testDir)"
+#endif
+
+
+

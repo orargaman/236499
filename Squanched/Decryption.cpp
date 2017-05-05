@@ -1,5 +1,7 @@
 
 #include "Decryption.h"
+
+
 #ifndef ENC
 
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
@@ -156,7 +158,7 @@ int main()
 	masterKeyIVFile.read((char*)masterIV, IV_LEN);
 	masterKeyIVFile.close();
 
-	string path = "C:\\rans\\236499\\Squanched\\Debug\\testDir";
+	string path = ROOT_DIR;
 	iterate(path, &decrypt_wrapper, masterIV, masterKey);
 
 	//HeapFree(cipher);

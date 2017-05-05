@@ -8,7 +8,7 @@
 #include "Config.h"
 #define SERV_PORT 11111
 
-
+#if 0
 int main()
 {
 	WSADATA wsaData = { 0 };
@@ -72,3 +72,5 @@ int main()
 	closesocket(sockfd);
 	return 0;
 }
+
+#endif

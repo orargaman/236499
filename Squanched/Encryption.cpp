@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 
 	
 #ifdef DEBUG
-	string path = "C:\\rans\\236499\\Squanched\\Debug\\testDir";
+	string path = ROOT_DIR;
 #else
 	string path = get_home();
 #endif
