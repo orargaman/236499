@@ -31,4 +31,8 @@
  */
 #define IV_DIGITS_NUM 2
 
-//#define ENC
+#ifdef DEBUG
+#define ROOT_DIR R"(C:\rans\236499\Squanched\Debug\testDir)"
+#endif
+
+#define ENC
