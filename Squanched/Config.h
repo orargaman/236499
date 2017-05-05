@@ -31,4 +31,4 @@
  */
 #define IV_DIGITS_NUM 2
 
-#define ENC
+//#define ENC

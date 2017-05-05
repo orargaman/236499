@@ -5,8 +5,8 @@
 
 #define SERV_PORT 11111
 #define MAX_LINE 4096
-
-int main3(int argc, char** argv)
+#if 0
+int main(int argc, char** argv)
 {
 	WSADATA wsaData = { 0 };
 	int iResult = 0;
@@ -62,3 +62,4 @@ int main3(int argc, char** argv)
 	wolfSSL_Cleanup();
 	exit(EXIT_SUCCESS);
 }
+#endif

