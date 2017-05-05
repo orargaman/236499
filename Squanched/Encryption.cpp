@@ -7,7 +7,7 @@ using std::string;
 void encrypt(string path, const PBYTE masterIV, const PBYTE masterKey);
 
 string get_username();
-string get_home();
+
 void send();
 void notify();
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
@@ -277,30 +277,7 @@ CLEANUP:
 //#endif
 //}
 //
-//string get_home() {
-//#ifdef _WIN32
-//	string path;
-//
-//	char* drive = getenv("USERPROFILE");
-//	if (drive == NULL) {
-//		throw runtime_error("USERPROFILE environment variable not found");
-//	}
-//	else {
-//		path = drive;
-//	}
-//
-//	return path;
-//#else
-//	struct passwd *pw;
-//
-//	uid_t uid = geteuid();
-//	pw = getpwuid(uid);
-//	if (pw) {
-//		return string(pw->pw_dir);
-//	}
-//
-//	return EMPTY;
-//#endif
+
 //}
 //
 //void notify() {

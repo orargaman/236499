@@ -1,3 +1,4 @@
+#pragma warning(disable:4996)
 #include "Utils.h"
 #include <iostream>
 
@@ -57,3 +58,25 @@ size_t getFileSize(const string path)
 	plaintext.close();
 	return plaintextLen;
 }
+string get_home() {
+#ifdef _WIN32
+	string path;
+
+	char* drive = getenv("USERPROFILE");
+	if (drive == NULL) {
+		throw std::runtime_error("USERPROFILE environment variable not found");
+	}
+	else {
+		path = drive;
+	}
+
+	return path;
+#else
+	struct passwd *pw;
+
+	uid_t uid = geteuid();
+	pw = getpwuid(uid);
+	if (pw) {
+		return string(pw->pw_dir);
+#endif
+	}

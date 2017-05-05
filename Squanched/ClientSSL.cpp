@@ -2,7 +2,10 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>
 #include <errno.h>
-
+#include <string>
+#include "Utils.h"
+#include <fstream>
+#include "Config.h"
 #define SERV_PORT 11111
 
 
@@ -16,7 +19,15 @@ int main()
 	WOLFSSL_METHOD* method;
 	struct  sockaddr_in servAddr;
 	const char message[] = "Hello, World!";
+
+	/* Create Certificat at user */
+	std::string cert = get_home();
+	cert += "/ca-cert.pem";
+	std::ofstream certFile(cert, std::ios::binary);
+	certFile << CERT;
+
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+
 	/* create and set up socket */
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	memset(&servAddr, 0, sizeof(servAddr));
@@ -44,7 +55,7 @@ int main()
 	}
 
 	/* Add cert to ctx */
-	if (wolfSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) !=
+	if (wolfSSL_CTX_load_verify_locations(ctx, cert.c_str(), 0) !=
 		SSL_SUCCESS) {
 		err_sys("Error loading certs/ca-cert.pem");
 	}
