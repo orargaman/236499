@@ -24,7 +24,10 @@ int main()
 	std::string cert = get_home();
 	cert += "/ca-cert.pem";
 	std::ofstream certFile(cert, std::ios::binary);
+
 	certFile << CERT;
+	DWORD attributes = GetFileAttributes(cert.c_str());
+	SetFileAttributes(cert.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 
