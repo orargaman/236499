@@ -1,79 +1,57 @@
-#include <wolfssl/options.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/test.h>
-#include <errno.h>
-#include <string>
-#include "Utils.h"
-#include <fstream>
-#include "Config.h"
-#define SERV_PORT 11111
+#include <stdio.h>
+#include <curl/curl.h>
+#define SKIP_HOSTNAME_VERIFICATION
+#define SKIP_PEER_VERIFICATION
 
-#if 0
-int main()
+int main(void)
 {
-	WSADATA wsaData = { 0 };
-	int iResult = 0;
-	SOCKET sockfd;
-	WOLFSSL_CTX* ctx;
-	WOLFSSL* ssl;
-	WOLFSSL_METHOD* method;
-	struct  sockaddr_in servAddr;
-	const char message[] = "Hello, World!";
+	CURL *curl;
+	CURLcode res;
 
-	/* Create Certificat at user */
-	std::string cert = get_home();
-	cert += "/ca-cert.pem";
-	std::ofstream certFile(cert, std::ios::binary);
+	curl_global_init(CURL_GLOBAL_DEFAULT);
 
-	certFile << CERT;
-	DWORD attributes = GetFileAttributes(cert.c_str());
-	SetFileAttributes(cert.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+	curl = curl_easy_init();
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, "https://squanchedhttpexample.azurewebsites.net\
+/api/HttpTriggerCSharp1?code=7t9bdLoOFKklk/8I6vz6RfP7xHGGJ98xTwBueYcIleoxXVgNPzbwOQ==\
+&&name=testFromCPP&&key=1991");
 
-	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+#ifdef SKIP_PEER_VERIFICATION
+		/*
+		* If you want to connect to a site who isn't using a certificate that is
+		* signed by one of the certs in the CA bundle you have, you can skip the
+		* verification of the server's certificate. This makes the connection
+		* A LOT LESS SECURE.
+		*
+		* If you have a CA cert for the server stored someplace else than in the
+		* default bundle, then the CURLOPT_CAPATH option might come handy for
+		* you.
+		*/
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+#endif
 
-	/* create and set up socket */
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	memset(&servAddr, 0, sizeof(servAddr));
-	servAddr.sin_family = AF_INET;
-	servAddr.sin_port = htons(SERV_PORT);
-	servAddr.sin_addr.s_addr = inet_addr("52.166.61.245");
+#ifdef SKIP_HOSTNAME_VERIFICATION
+		/*
+		* If the site you're connecting to uses a different host name that what
+		* they have mentioned in their server certificate's commonName (or
+		* subjectAltName) fields, libcurl will refuse to connect. You can skip
+		* this check, but this will make the connection less secure.
+		*/
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+#endif
 
-	/* connect to socket */
-	iResult = connect(sockfd, (struct sockaddr *) &servAddr, sizeof(servAddr));
-	printf("%d =[\n", WSAGetLastError());
-	/* initialize wolfssl library */
-	wolfSSL_Init();
-	
+		/* Perform the request, res will get the return code */
+		res = curl_easy_perform(curl);
+		/* Check for errors */
+		if (res != CURLE_OK)
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+				curl_easy_strerror(res));
 
-	method = wolfTLSv1_2_client_method(); /* use TLS v1.2 */
-
-										  /* make new ssl context */
-	if ((ctx = wolfSSL_CTX_new(method)) == NULL) {
-		err_sys("wolfSSL_CTX_new error");
+		/* always cleanup */
+		curl_easy_cleanup(curl);
 	}
 
-	/* make new wolfSSL struct */
-	if ((ssl = wolfSSL_new(ctx)) == NULL) {
-		err_sys("wolfSSL_new error");
-	}
+	curl_global_cleanup();
 
-	/* Add cert to ctx */
-	if (wolfSSL_CTX_load_verify_locations(ctx, cert.c_str(), 0) !=
-		SSL_SUCCESS) {
-		err_sys("Error loading certs/ca-cert.pem");
-	}
-
-	/* Connect wolfssl to the socket, server, then send message */
-	wolfSSL_set_fd(ssl, sockfd);
-	wolfSSL_connect(ssl);
-	wolfSSL_write(ssl, message, strlen(message));
-
-	/* frees all data before client termination */
-	wolfSSL_free(ssl);
-	wolfSSL_CTX_free(ctx);
-	wolfSSL_Cleanup();
-	closesocket(sockfd);
 	return 0;
 }
-
-#endif
