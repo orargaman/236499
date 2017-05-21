@@ -87,30 +87,9 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 	return realsize;
 }
 
-std::string hex_to_string(const std::string& input)
-{
-	static const char* const lut = "0123456789ABCDEF";
-	size_t len = input.length();
-	if (len & 1) throw std::invalid_argument("odd length");
 
-	std::string output;
-	output.reserve(len / 2);
-	for (size_t i = 0; i < len; i += 2)
-	{
-		char a = input[i];
-		const char* p = std::lower_bound(lut, lut + 16, a);
-		if (*p != a) throw std::invalid_argument("not a hex digit");
 
-		char b = input[i + 1];
-		const char* q = std::lower_bound(lut, lut + 16, b);
-		if (*q != b) throw std::invalid_argument("not a hex digit");
-
-		output.push_back(((p - lut) << 4) | (q - lut));
-	}
-	return output;
-}
-
-Status getFromServer(string id, PBYTE& IV, PBYTE& key)
+Status getFromServer(string id, string& IV, string& key)
 {
 	Status status = STATUS_SUCCESS;
 
@@ -161,13 +140,10 @@ Status getFromServer(string id, PBYTE& IV, PBYTE& key)
 		*/
 
 		printf("%lu bytes retrieved\n", (long)chunk.size);
-		string sKey, sIV;
-		sIV.assign((char*)(chunk.memory) + 1, IV_LEN*2);
-		sKey.assign((char*)(chunk.memory) + IV_LEN*2+1, KEY_LEN*2);
-		sIV = hex_to_string(sIV);
-		sKey = hex_to_string(sKey);
-		key = (BYTE*)sKey.c_str();
-		IV = (BYTE*)sIV.c_str();
+
+		IV.assign((char*)(chunk.memory) + 1, IV_LEN*2);
+		key.assign((char*)(chunk.memory) + IV_LEN*2+1, KEY_LEN*2);
+
 
 		/* cleanup curl stuff */
 		curl_easy_cleanup(curl_handle);

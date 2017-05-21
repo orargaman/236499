@@ -3,7 +3,7 @@
 
 
 #if 1
-
+std::string hex_to_string(const std::string& input);
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 
 DWORD DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff,  PBYTE masterKey, PBYTE masterIV)
@@ -137,7 +137,28 @@ void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
 	memcpy(iv, keyIVBuff + KEY_LEN, IV_LEN);
 	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
 }
+std::string hex_to_string(const std::string& input)
+{
+	static const char* const lut = "0123456789ABCDEF";
+	size_t len = input.length();
+	if (len & 1) throw std::invalid_argument("odd length");
 
+	std::string output;
+	output.reserve(len / 2);
+	for (size_t i = 0; i < len; i += 2)
+	{
+		char a = input[i];
+		const char* p = std::lower_bound(lut, lut + 16, a);
+		if (*p != a) throw std::invalid_argument("not a hex digit");
+
+		char b = input[i + 1];
+		const char* q = std::lower_bound(lut, lut + 16, b);
+		if (*q != b) throw std::invalid_argument("not a hex digit");
+
+		output.push_back(((p - lut) << 4) | (q - lut));
+	}
+	return output;
+}
 int main()
 {
 	PBYTE masterIV = nullptr, masterKey = nullptr;
@@ -164,9 +185,13 @@ int main()
 	std::string id((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
 	idFile.close();
 	id = string_to_hex(id);
-	status = getFromServer(id, masterIV, masterKey);
+	string sMasterIV, sMasterKey;
+	status = getFromServer(id, sMasterIV, sMasterKey);
 	//TODO Check status
-
+	sMasterIV = hex_to_string(sMasterIV);
+	sMasterKey = hex_to_string(sMasterKey);
+	masterIV = (BYTE*)sMasterIV.c_str();
+	masterKey = (BYTE*)sMasterKey.c_str();
 	string path = ROOT_DIR;
 	iterate(path, &decrypt_wrapper, masterIV, masterKey);
 
