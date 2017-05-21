@@ -1,20 +1,23 @@
-#include <stdio.h>
-#include <curl/curl.h>
-#define SKIP_HOSTNAME_VERIFICATION
-#define SKIP_PEER_VERIFICATION
+#pragma once
+#include "ClientSSL.h"
 
-int main(void)
+using std::string;
+
+Status SendToServer(string str)
 {
 	CURL *curl;
 	CURLcode res;
-
+	Status status = STATUS_SUCCESS;
+	
 	curl_global_init(CURL_GLOBAL_DEFAULT);
+	string url = "https://squanchedhttpexample.azurewebsites.net\
+/api/HttpTriggerCSharp1?code=7t9bdLoOFKklk/8I6vz6RfP7xHGGJ98xTwBueYcIleoxXVgNPzbwOQ==&&";
+	url += str;
 
 	curl = curl_easy_init();
 	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_URL, "https://squanchedhttpexample.azurewebsites.net\
-/api/HttpTriggerCSharp1?code=7t9bdLoOFKklk/8I6vz6RfP7xHGGJ98xTwBueYcIleoxXVgNPzbwOQ==\
-&&name=testFromCPP&&key=1991");
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		//TODO else set status fail
 
 #ifdef SKIP_PEER_VERIFICATION
 		/*
@@ -46,6 +49,7 @@ int main(void)
 		if (res != CURLE_OK)
 			fprintf(stderr, "curl_easy_perform() failed: %s\n",
 				curl_easy_strerror(res));
+			//TODO SET status FAIL
 
 		/* always cleanup */
 		curl_easy_cleanup(curl);
@@ -53,5 +57,5 @@ int main(void)
 
 	curl_global_cleanup();
 
-	return 0;
+	return status;
 }

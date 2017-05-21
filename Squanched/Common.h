@@ -21,3 +21,4 @@
 #else
 #	include <pwd.h>
 #endif
+typedef DWORD Status;

