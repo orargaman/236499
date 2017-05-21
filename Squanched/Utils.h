@@ -13,3 +13,4 @@ void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key);
 //void process(const path& path);
 size_t getFileSize(const string path);
 string get_home();
+std::string string_to_hex(const std::string& input);

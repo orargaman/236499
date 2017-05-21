@@ -2,4 +2,5 @@
 
 
 #include "Common.h"
+#include "ClientSSL.h"
 #include "Config.h"
