@@ -47,9 +47,13 @@ Status SendToServer(string str)
 		res = curl_easy_perform(curl);
 		/* Check for errors */
 		if (res != CURLE_OK)
+		{
 			fprintf(stderr, "curl_easy_perform() failed: %s\n",
 				curl_easy_strerror(res));
+			status = STATUS_UNSUCCESSFUL;
+		}
 			//TODO SET status FAIL
+			
 
 		/* always cleanup */
 		curl_easy_cleanup(curl);
@@ -127,9 +131,12 @@ Status getFromServer(string id, string& IV, string& key)
 
 	/* check for errors */
 	if (res != CURLE_OK) {
-		fprintf(stderr, "curl_easy_perform() failed: %s\n",
-			curl_easy_strerror(res));
-		//TODO Handle status
+		{
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+				curl_easy_strerror(res));
+			//TODO Handle status
+			status = STATUS_UNSUCCESSFUL;
+		}
 	}
 	else {
 		/*

