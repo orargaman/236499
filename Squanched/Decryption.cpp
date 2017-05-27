@@ -2,7 +2,7 @@
 #include "Decryption.h"
 
 
-#if 1
+#if 0
 std::string hex_to_string(const std::string& input);
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 

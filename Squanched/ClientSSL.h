@@ -7,3 +7,4 @@
 #define SKIP_PEER_VERIFICATION
 Status SendToServer(string str);
 Status getFromServer(string id, string& IV, string& key);
+bool download_jpeg(string path, char* url);
