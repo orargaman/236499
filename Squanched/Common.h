@@ -1,8 +1,7 @@
 #pragma once
 
-#define WIN32_NO_STATUS
+#define  _WIN32_WINNT 0x0500
 #include <windows.h>
-#undef WIN32_NO_STATUS
 
 #include <boost/filesystem/operations.hpp>
 #include <winternl.h>
