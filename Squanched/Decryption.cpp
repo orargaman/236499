@@ -2,9 +2,9 @@
 #include "Decryption.h"
 
 
-#if 0
+#if 1
 std::string hex_to_string(const std::string& input);
-DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
+static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 
 Status DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff,  PBYTE masterKey, PBYTE masterIV)
 {
@@ -197,7 +197,7 @@ std::string hex_to_string(const std::string& input)
 	}
 	return output;
 }
-int main()
+int decryption_main()
 {
 	PBYTE masterIV = nullptr, masterKey = nullptr;
 	std::string id;
@@ -218,6 +218,7 @@ int main()
 	idFile.open(pathToID, std::ios::binary);
 	id = std::string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
 	idFile.close();
+	id.erase(0, 1);
 	id = string_to_hex(id);
 	
 	status = getFromServer(id, sMasterIV, sMasterKey);

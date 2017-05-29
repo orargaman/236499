@@ -39,6 +39,9 @@
  * Certifcate
  */
 
+#define FINISHED_ENCRYPTION '1'
+#define NOT_FINISHED_ENCRYPTION '0'
+
 #define CERT "Certificate:\n\
     Data:\n\
         Version: 3 (0x2)\n\
