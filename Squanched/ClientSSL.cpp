@@ -94,7 +94,7 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 
 
 
-Status getFromServer(string id, string& IV, string& key)
+Status getFromServer(string url, string& str)
 {
 	Status status = STATUS_SUCCESS;
 
@@ -111,9 +111,9 @@ Status getFromServer(string id, string& IV, string& key)
 	/* init the curl session */
 	curl_handle = curl_easy_init();
 
-	string url = "https://squanchedhttpexample.azurewebsites.net\
-/api/httpRetrieveKeyIV?code=yJ6KMPb/gnZev9K41RV0i1dCjcqJpXHwzjUa7Qq7Llm54cDYTnXvTA==";
-	url += "&&ID="+id;
+//	string url = "https://squanchedhttpexample.azurewebsites.net\
+// /api/httpRetrieveKeyIV?code=yJ6KMPb/gnZev9K41RV0i1dCjcqJpXHwzjUa7Qq7Llm54cDYTnXvTA==";
+//	url += "&&ID="+id;
 	/* specify URL to get */
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
 
@@ -149,9 +149,7 @@ Status getFromServer(string id, string& IV, string& key)
 
 		printf("%lu bytes retrieved\n", (long)chunk.size);
 
-		IV.assign((char*)(chunk.memory) + 1, IV_LEN*2);
-		key.assign((char*)(chunk.memory) + IV_LEN*2+1, KEY_LEN*2);
-
+		str = string(chunk.memory);
 
 		/* cleanup curl stuff */
 		curl_easy_cleanup(curl_handle);
