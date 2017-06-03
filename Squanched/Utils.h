@@ -18,3 +18,4 @@ string get_path_to_jpeg();
 string get_path_to_id();
 void parsePublicKey(const string& str, string& mod, string& exp);
 struct StringPrivateBlob parsePrivateKey(const string&  str);
+string get_path_to_ENC();

