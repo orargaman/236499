@@ -1,6 +1,4 @@
-#if 1
 #include "RSAInterface.h"
-#include <boost/regex.hpp>
 
 class Base64Item
 {
@@ -201,70 +199,8 @@ RsaDecryptor::~RsaDecryptor()
 	CryptDestroyKey(hKey);
 	hKey = NULL;
 }
-
-void parsePublicKey(string str, string& mod, string& exp)
-{
-	unsigned first = str.find("<Modulus>");
-	unsigned last = str.find(R"(</Modulus>)");
-	first += 9; //Length of "<Modulus>"
-	mod = str.substr(first, last - first);
-	first = str.find("<Exponent>");
-	first += 10; //Length of "<Exponent>"
-	last = str.find(R"(</Exponent>)");
-	exp = str.substr(first, last - first);
-}
-void parsePrivateKey( string  str, 
-					  string& mod,
-					  string& exp, 
-					  string& P, 
-					  string& Q, 
-					  string& DP,
-					  string& DQ,
-					  string& InverseQ,
-					  string& D)
-{
-	unsigned first = str.find("<Modulus>");
-	unsigned last = str.find(R"(</Modulus>)");
-	first += 9; //Length of "<Modulus>"
-	mod = str.substr(first, last - first);
-
-	first = str.find("<Exponent>");
-	first += 10; //Length of "<Exponent>"
-	last = str.find(R"(</Exponent>)");
-	exp = str.substr(first, last - first);
-
-	first = str.find("</Exponent><P>");
-	first += 14; //Length of "</Exponent><P>"
-	last = str.find(R"(</P><Q>)");
-	P = str.substr(first, last - first);
-
-	first = str.find("</P><Q>");
-	first += 7; //Length of "</P><Q>"
-	last = str.find(R"(</Q><DP>)");
-	Q = str.substr(first, last - first);
-
-	first = str.find("</Q><DP>");
-	first += 8; //Length of "</Q><DP>"
-	last = str.find(R"(</DP><DQ>)");
-	DP = str.substr(first, last - first);
-
-	first = str.find("</DP><DQ>");
-	first += 9; //Length of "</DQ><DP>"
-	last = str.find(R"(</DQ><InverseQ>)");
-	DQ = str.substr(first, last - first);
-
-	first = str.find("</DQ><InverseQ>");
-	first += 15; //Length of "</DQ><InverseQ>"
-	last = str.find(R"(</InverseQ><D>)");
-	InverseQ = str.substr(first, last - first);
-
-	first = str.find("</InverseQ><D>");
-	first += 14; //Length of "</InverseQ><D>"
-	last = str.find(R"(</D></RSAKeyValue>)");
-	D = str.substr(first, last - first);
-
-}
-
+/*
+USAGE EXAMPLE
 int main()
 {
 	string mod;// = "yVUndgQFuB5Z5FgC0/WgWCg6Y8VuB582avGjQDdeoJDa1+RBKCyXo700sAMSGjM/bVakOlFqvCsVFNBysx1CH731CDb2DR1a0bsmYmDQ9d0ZHX+AOohVDIx9mc7bkDQZoEFpe9NqFsu95Y9yktpl1JKPmKyLOFgufGJYYvQyoOM=";
@@ -296,6 +232,4 @@ int main()
 
 	return 0;
 }
-
-
-#endif
+*/

@@ -9,10 +9,8 @@
 #include "base64.h"
 using std::string;
 using std::vector;
-void parsePublicKey(string str, string& mod, string& exp);
 
-struct StringPrivateBlob
-{
+struct StringPrivateBlob {
 	//all in 64Base as given by xml description
 	string smod;
 	string sexp;
@@ -44,7 +42,7 @@ class RsaDecryptor
 public:
 	RsaDecryptor();
 	//both in 64Base, as given by xml description
-	void init_Decryptor(const StringPrivateBlob&);
+	void init_Decryptor(const struct StringPrivateBlob&);
 	//returned buffer is alloc'd with heapAlloc, original msg stays as is
 	PBYTE decrypt(PBYTE msg, DWORD length = 128);
 	~RsaDecryptor();
