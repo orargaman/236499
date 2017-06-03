@@ -5,8 +5,19 @@
 #if 1
 std::string hex_to_string(const std::string& input);
 static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
+Status getPrivateParams(string id, RsaDecryptor& rsaDecryptor);
 
-Status DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff,  PBYTE masterKey, PBYTE masterIV)
+Status getPrivateParams(string id, RsaDecryptor& rsaDecryptor)
+{
+	string url = URL_PRIVATE_RSA + id;
+	string chunk;
+	Status status;
+	status = getFromServer(url, chunk);
+	parsePrivateKey(chunk, rsaDecryptor);
+	return status;
+}
+
+Status DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff, RsaDecryptor rsaDecryptor)
 {
 	Status status;
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
@@ -126,7 +137,7 @@ DECCLEAN:
 
 }
 
-void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
+void decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
 {
 	std::ifstream ifile;
 	PBYTE keyIV = nullptr, keyIVBuff = nullptr, iv = nullptr, key = nullptr, cipher = nullptr;
@@ -155,7 +166,7 @@ void decrypt_wrapper(string path, PBYTE masterIV, PBYTE masterKey)
 	ifile.read((char*)cipher, cipherSize);
 	ifile.close();
 	//TODO add status read
-	status = DecryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
+	status = DecryptKeyIV(keyIV, &keyIVBuff, rsaDecryptor);
 	if(!NT_SUCCESS(status))
 	{
 		goto CLEAN;
