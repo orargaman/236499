@@ -40,8 +40,8 @@
  */
 
 
-#define URL_PUBLIC_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPublicKey?code=/JhagZr0xhT/CfqmBa/B0csng8kQKhPCXo7xjnfWJOD6P0sgITy4GQ==id=)"
-#define URL_PRIVATE_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPrivateKey?code=cqM2PfQd1BAnI1LH4ti5K7L1Up1uzokZ7vYe2Zasb81LXi3dr07PSg==id=)"
+#define URL_PUBLIC_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPublicKey?code=/JhagZr0xhT/CfqmBa/B0csng8kQKhPCXo7xjnfWJOD6P0sgITy4GQ==ID=)"
+#define URL_PRIVATE_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPrivateKey?code=cqM2PfQd1BAnI1LH4ti5K7L1Up1uzokZ7vYe2Zasb81LXi3dr07PSg==ID=)"
 #define FINISHED_ENCRYPTION '1'
 #define NOT_FINISHED_ENCRYPTION '0'
 

