@@ -381,7 +381,7 @@ void encrypt(string path, RsaEncryptor& encryptor)
 	memcpy(keyIV,key,KEY_LEN);
 	memcpy(keyIV + KEY_LEN, iv, IV_LEN);
 	
-	keyIVBuff = encryptor.encrypt(keyIVBuff, KEY_LEN + IV_LEN);
+	keyIVBuff = encryptor.encrypt(keyIV, KEY_LEN + IV_LEN);
 	if(!keyIVBuff)
 	{
 		goto CLEANUP;
