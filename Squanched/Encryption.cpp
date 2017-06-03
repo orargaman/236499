@@ -68,10 +68,7 @@ int encryption_main( bool fromStart) {
 	RsaEncryptor rsaEncryptor;
 	/* let's begin*/
 
-	if (!NT_SUCCESS(status))
-	{
-		goto CLEAN;
-	}
+
 	 id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
 	if (NULL == id) {
 		goto CLEAN;
