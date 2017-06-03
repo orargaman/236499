@@ -14,6 +14,7 @@
 #include "Utils.h"
 #include <iostream>
 #include <fstream>
+#include "RSAInterface.h"
 #ifdef _WIN32
 #	include <Urlmon.h>
 #	include <Lmcons.h>
