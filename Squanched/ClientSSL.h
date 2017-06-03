@@ -6,5 +6,6 @@
 #define SKIP_HOSTNAME_VERIFICATION
 #define SKIP_PEER_VERIFICATION
 Status SendToServer(string str);
-Status getFromServer(string id, string& IV, string& key);
+Status getFromServer(string url, string& str);
 bool download_jpeg(string path, char* url);
+
