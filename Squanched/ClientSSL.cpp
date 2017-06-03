@@ -65,7 +65,6 @@ Status SendToServer(string str)
 	return status;
 }
 
-
 struct MemoryStruct {
 	char *memory;
 	size_t size;
@@ -91,8 +90,6 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 
 	return realsize;
 }
-
-
 
 Status getFromServer(string url, string& str)
 {

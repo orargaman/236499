@@ -9,7 +9,6 @@
 #include "base64.h"
 using std::string;
 using std::vector;
-void parsePublicKey(string str, string& mod, string& exp);
 
 struct StringPrivateBlob {
 	//all in 64Base as given by xml description

