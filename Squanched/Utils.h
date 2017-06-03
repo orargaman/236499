@@ -18,3 +18,5 @@ string get_home();
 string string_to_hex(const string& input);
 string get_path_to_jpeg();
 string get_path_to_id();
+void parsePublicKey(const string& str, string& mod, string& exp);
+struct StringPrivateBlob parsePrivateKey(const string&  str);

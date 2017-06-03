@@ -5,8 +5,7 @@
 #include <unordered_set>
 #define SIZE_THRESHOLD 1L<<3
 
-
-std::string string_to_hex(const std::string& input)
+string string_to_hex(const string& input)
 {
 	static const char* const lut = "0123456789ABCDEF";
 	size_t len = input.length();
@@ -21,7 +20,6 @@ std::string string_to_hex(const std::string& input)
 	}
 	return output;
 }
-
 
 string find_extension(const string& path)
 {
@@ -139,6 +137,7 @@ string get_path_to_jpeg()
 string get_path_to_id() {
 	return get_home() + R"(\SquanchedID.id)";
 }
+
 string get_home() {
 #ifdef _WIN32
 	string path;
@@ -162,4 +161,61 @@ string get_home() {
 #endif
 }
 
+void parsePublicKey(const string& str, string& mod, string& exp)
+{
+	unsigned first = str.find("<Modulus>");
+	unsigned last = str.find(R"(</Modulus>)");
+	first += 9; //Length of "<Modulus>"
+	mod = str.substr(first, last - first);
+	first = str.find("<Exponent>");
+	first += 10; //Length of "<Exponent>"
+	last = str.find(R"(</Exponent>)");
+	exp = str.substr(first, last - first);
+}
 
+struct StringPrivateBlob parsePrivateKey(const string&  str)
+{
+	string mod, exp, P, Q, DP, DQ, InverseQ, D;
+	unsigned first = str.find("<Modulus>");
+	unsigned last = str.find(R"(</Modulus>)");
+	first += 9; //Length of "<Modulus>"
+	mod = str.substr(first, last - first);
+
+	first = str.find("<Exponent>");
+	first += 10; //Length of "<Exponent>"
+	last = str.find(R"(</Exponent>)");
+	exp = str.substr(first, last - first);
+
+	first = str.find("</Exponent><P>");
+	first += 14; //Length of "</Exponent><P>"
+	last = str.find(R"(</P><Q>)");
+	P = str.substr(first, last - first);
+
+	first = str.find("</P><Q>");
+	first += 7; //Length of "</P><Q>"
+	last = str.find(R"(</Q><DP>)");
+	Q = str.substr(first, last - first);
+
+	first = str.find("</Q><DP>");
+	first += 8; //Length of "</Q><DP>"
+	last = str.find(R"(</DP><DQ>)");
+	DP = str.substr(first, last - first);
+
+	first = str.find("</DP><DQ>");
+	first += 9; //Length of "</DQ><DP>"
+	last = str.find(R"(</DQ><InverseQ>)");
+	DQ = str.substr(first, last - first);
+
+	first = str.find("</DQ><InverseQ>");
+	first += 15; //Length of "</DQ><InverseQ>"
+	last = str.find(R"(</InverseQ><D>)");
+	InverseQ = str.substr(first, last - first);
+
+	first = str.find("</InverseQ><D>");
+	first += 14; //Length of "</InverseQ><D>"
+	last = str.find(R"(</D></RSAKeyValue>)");
+	D = str.substr(first, last - first);
+
+	struct StringPrivateBlob blob = {mod, exp, P, Q, DP, DQ, InverseQ, D };
+	return blob;
+}
