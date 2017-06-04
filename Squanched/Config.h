@@ -45,12 +45,14 @@
 #define FINISHED_ENCRYPTION '1'
 #define NOT_FINISHED_ENCRYPTION '0'
 
+
 /*
  * Size sum before removing the plaintext 
  * files that are currently decrypted
  */
 #define SIZE_THRESHOLD 1L<<3
 #define COUNT_THRESHOLD 100
+#define MAX_FILE_SIZE 107374182L  // 100MB
 
 #define CERT "Certificate:\n\
     Data:\n\
