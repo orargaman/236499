@@ -2,7 +2,7 @@
 #include "Decryption.h"
 #include <boost/filesystem.hpp>
 #include "Utils.h"
-#if 1
+
 bool FileExist(const std::string& Name)
 {
 	return boost::filesystem::exists(Name);
@@ -18,12 +18,12 @@ void hideWindow()
 
 int main()
 {
+#ifndef DEBUG
 	hideWindow();
+#endif
 	std::ifstream idFile;
 	char c;
 	string pathToID = get_path_to_id();
-
-	
 
 	if(FileExist(pathToID))
 	{
@@ -42,8 +42,6 @@ int main()
 		{
 			std::cout << "ERROR" << std::endl;
 		}
-		
-		
 	}
 	else
 	{
@@ -51,4 +49,3 @@ int main()
 	}
 
 }
-#endif

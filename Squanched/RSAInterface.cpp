@@ -73,15 +73,24 @@ PBYTE RsaEncryptor::encrypt(PBYTE msg, DWORD dwDataLen)
 {
 	const DWORD cdwDataLen = 128;
 	PBYTE pMsg = (PBYTE) HeapAlloc(GetProcessHeap(), 0, cdwDataLen);
-	for (size_t i = 0; i < dwDataLen; ++i)
-		pMsg[i] = msg[i];
-	
-	if (!CryptEncrypt(hKey, NULL, TRUE, CRYPT_OAEP, pMsg, &dwDataLen, cdwDataLen))
+	memcpy(pMsg, msg, dwDataLen);
+	/*HCRYPTKEY keyDup;
+	if(!CryptDuplicateKey(hKey,0,0,&keyDup))
 	{
-		std::cout << "Error on CryptEncrypt (Second Pass) " << GetLastError() << std::endl;
-		HeapFree(GetProcessHeap(), 0, pMsg);
-		pMsg = nullptr;
+		std::cout << "Error on CryptDuplicateKey " << GetLastError() << std::endl;
+		goto RSA_ENC_CLEANUP;
+	}*/
+	if (!CryptEncrypt(this->hKey, NULL, FALSE, CRYPT_OAEP, pMsg, &dwDataLen, cdwDataLen))
+	{
+		std::cout << "Error on CryptEncrypt " << GetLastError() << std::endl;
+		goto RSA_ENC_CLEANUP;
 	}
+	goto RSA_GOOD_RETURN;
+RSA_ENC_CLEANUP:
+	HeapFree(GetProcessHeap(), 0, pMsg);
+	pMsg = nullptr;
+RSA_GOOD_RETURN:
+	//CryptDestroyKey(keyDup);
 	return pMsg;
 }
 
@@ -120,7 +129,11 @@ RsaEncryptor::~RsaEncryptor()
 PBYTE RsaDecryptor::decrypt(PBYTE encMsg, DWORD length)
 {
 	PBYTE bBuffer = (PBYTE)HeapAlloc(GetProcessHeap(), 0, length);
-	if (!bBuffer) goto RETURN;
+	if (!bBuffer)
+	{
+		std::cout << "Error allocating buffer for decryption" << std::endl;
+		return NULL;
+	}
 	for (size_t i = 0; i < length; ++i)
 	{
 		bBuffer[i] = encMsg[i];
@@ -129,7 +142,7 @@ PBYTE RsaDecryptor::decrypt(PBYTE encMsg, DWORD length)
 	//now to get the decryption thing going
 		if (!CryptDecrypt(hKey, NULL, TRUE, CRYPT_OAEP, bBuffer, &length))
 	{
-		std::cout << "Error on CryptDecrypt (Second Pass) " << GetLastError() << std::endl;
+		std::cout << "Error on CryptDecrypt: " << GetLastError() << std::endl;
 		goto CLEANUP;
 	}
 		return bBuffer;
@@ -137,8 +150,7 @@ PBYTE RsaDecryptor::decrypt(PBYTE encMsg, DWORD length)
 	
 CLEANUP:
 	HeapFree(GetProcessHeap(), 0, bBuffer);
-RETURN:
-	return bBuffer;
+	return NULL;
 }
 
 void RsaDecryptor::init_Decryptor(const StringPrivateBlob& sBlob)

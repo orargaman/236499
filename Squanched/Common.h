@@ -22,4 +22,3 @@
 #	include <pwd.h>
 #endif
 typedef DWORD Status;
-#define SIZE_THRESHOLD 1L<<3
