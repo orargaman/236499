@@ -137,12 +137,12 @@ PBYTE RsaDecryptor::decrypt(PBYTE encMsg, DWORD length)
 	memcpy(bBuffer, encMsg, length);
 
 	//now to get the decryption thing going
-		if (!CryptDecrypt(hKey, NULL, TRUE, CRYPT_OAEP, bBuffer, &length))
+	if (!CryptDecrypt(hKey, NULL, TRUE, CRYPT_OAEP, bBuffer, &length))
 	{
 		std::cout << "Error on CryptDecrypt: " << GetLastError() << std::endl;
 		goto CLEANUP;
 	}
-		return bBuffer;
+	return bBuffer;
 	
 	
 CLEANUP:
