@@ -10,19 +10,9 @@
 #define KEY_LEN (256/8) // 256 bits
 
 /*
-* URL to add.php
-*/
-#define URL_PANEL "http://localhost/add.php"
-
-/*
 * If notification file should be created
 */
 #define OPEN_FILE true
-
-/*
-* Notification file name
-*/
-#define NOTIFY_FILENAME "note.html"
 
 #define IV_LEN (128/8)
 
@@ -31,14 +21,9 @@
  */
 #define IV_DIGITS_NUM 2
 
-
-#define ENC
-
 #define ID_LEN (256/8) // 256 bits
-/*
- * Certifcate
- */
 
+#define ENCRYPTED_KEY_IV_LEN (1024/8)
 
 #define URL_PUBLIC_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPublicKey?code=/JhagZr0xhT/CfqmBa/B0csng8kQKhPCXo7xjnfWJOD6P0sgITy4GQ==&&ID=)"
 #define URL_PRIVATE_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPrivateKey?code=cqM2PfQd1BAnI1LH4ti5K7L1Up1uzokZ7vYe2Zasb81LXi3dr07PSg==&&ID=)"
@@ -54,6 +39,9 @@
 #define COUNT_THRESHOLD 100
 #define MAX_FILE_SIZE 107374182L  // 100MB
 
+ /*
+ * Certifcate
+ */
 #define CERT "Certificate:\n\
     Data:\n\
         Version: 3 (0x2)\n\

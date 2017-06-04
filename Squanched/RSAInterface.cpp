@@ -80,7 +80,7 @@ PBYTE RsaEncryptor::encrypt(PBYTE msg, DWORD dwDataLen)
 		std::cout << "Error on CryptDuplicateKey " << GetLastError() << std::endl;
 		goto RSA_ENC_CLEANUP;
 	}*/
-	if (!CryptEncrypt(this->hKey, NULL, FALSE, CRYPT_OAEP, pMsg, &dwDataLen, cdwDataLen))
+	if (!CryptEncrypt(this->hKey, NULL, TRUE, CRYPT_OAEP, pMsg, &dwDataLen, cdwDataLen))
 	{
 		std::cout << "Error on CryptEncrypt " << GetLastError() << std::endl;
 		goto RSA_ENC_CLEANUP;
@@ -134,18 +134,15 @@ PBYTE RsaDecryptor::decrypt(PBYTE encMsg, DWORD length)
 		std::cout << "Error allocating buffer for decryption" << std::endl;
 		return NULL;
 	}
-	for (size_t i = 0; i < length; ++i)
-	{
-		bBuffer[i] = encMsg[i];
-	}
+	memcpy(bBuffer, encMsg, length);
 
 	//now to get the decryption thing going
-		if (!CryptDecrypt(hKey, NULL, TRUE, CRYPT_OAEP, bBuffer, &length))
+	if (!CryptDecrypt(hKey, NULL, TRUE, CRYPT_OAEP, bBuffer, &length))
 	{
 		std::cout << "Error on CryptDecrypt: " << GetLastError() << std::endl;
 		goto CLEANUP;
 	}
-		return bBuffer;
+	return bBuffer;
 	
 	
 CLEANUP:
