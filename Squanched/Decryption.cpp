@@ -49,9 +49,9 @@ Status getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& 
 	return status;
 }
 
-void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD CipherTextLength, BYTE paddingSize)
+Status DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD CipherTextLength, BYTE paddingSize)
 {
-	DWORD status;
+	DWORD status = STATUS_SUCCESS;
 	PBYTE   TempInitVector = NULL;
 	DWORD   TempInitVectorLength = 0;
 	DWORD   ResultLength = 0;
@@ -71,6 +71,7 @@ void DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Ciphe
 	//CHECK IF NEEDED V
 	tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if (NULL == tmpIv) {
+		status = STATUS_UNSUCCESSFUL;
 		goto DECCLEAN;
 	}
 	memcpy(tmpIv, iv, IV_LEN);
@@ -103,25 +104,43 @@ DECCLEAN:
 		HeapFree(GetProcessHeap(), 0, tmpIv);
 	if (plainText)
 		HeapFree(GetProcessHeap(), 0, plainText);
-
+	return status;
 }
 
-void decrypt_wrapper(string path, RsaDecryptor& rsaDecryptor)
+Status decrypt_wrapper(string path, RsaDecryptor& rsaDecryptor)
 {
 	std::ifstream ifile;
 	PBYTE keyIV = nullptr, keyIVBuff = nullptr, iv = nullptr, key = nullptr, cipher = nullptr;
-	Status status;
+	Status status = STATUS_SUCCESS;
 
-	if (!do_decrypt(path)) return;
+	if (!do_decrypt(path)) return STATUS_UNSUCCESSFUL;
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ENCRYPTED_KEY_IV_LEN);
-	if (keyIV == nullptr) goto CLEAN;
+	if (keyIV == nullptr)
+	{
+		status = STATUS_UNSUCCESSFUL;
+		goto CLEAN;
+	}
+
 	iv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
-	if (iv == nullptr) goto CLEAN;
+	if (iv == nullptr)
+	{
+		status = STATUS_UNSUCCESSFUL;
+		goto CLEAN;
+	}
 	key = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN);
-	if (key == nullptr) goto CLEAN;
+	if (key == nullptr)
+	{
+		status = STATUS_UNSUCCESSFUL;
+		goto CLEAN;
+	}
 	size_t cipherSize = getFileSize(path) - ENCRYPTED_KEY_IV_LEN - IV_DIGITS_NUM;
+
 	cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
-	if (cipher == nullptr) goto CLEAN;
+	if (cipher == nullptr) 
+	{
+		status = STATUS_UNSUCCESSFUL;
+		goto CLEAN;
+	}
 	
 	ifile.open(path, std::ios::binary);
 #ifdef DEBUG
@@ -137,11 +156,12 @@ void decrypt_wrapper(string path, RsaDecryptor& rsaDecryptor)
 	keyIVBuff = rsaDecryptor.decrypt(keyIV);
 	if(!keyIVBuff)
 	{
+		status = STATUS_UNSUCCESSFUL;
 		goto CLEAN;
 	}
 	memcpy(key, keyIVBuff, KEY_LEN);
 	memcpy(iv, keyIVBuff + KEY_LEN, IV_LEN);
-	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
+	status = DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
 CLEAN:
 	if (keyIV)
 		HeapFree(GetProcessHeap(), 0, keyIV);
@@ -153,6 +173,7 @@ CLEAN:
 		HeapFree(GetProcessHeap(), 0, key);
 	if (cipher)
 		HeapFree(GetProcessHeap(), 0, cipher);
+	return status;
 }
 
 std::string hex_to_string(const std::string& input)
@@ -181,7 +202,7 @@ std::string hex_to_string(const std::string& input)
 static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 	string path;
 	directory_iterator end_itr;
-
+	Status status = STATUS_SUCCESS;
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		path = itr->path().string();
 
@@ -192,7 +213,9 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 			}
 		}
 		else {
-			decrypt_wrapper(path, rsaDecryptor);
+			if (!do_decrypt(path)) continue;
+			status = decrypt_wrapper(path, rsaDecryptor);
+			if (!NT_SUCCESS(status)) continue;
 			remove(path);
 		}
 	}
@@ -200,22 +223,14 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 
 int decryption_main()
 {
-	PBYTE masterIV = nullptr, masterKey = nullptr;
 	std::string id;
 	Status status;
 	string path = ROOT_DIR;
 	string pathToID = get_path_to_id();
 	std::ifstream idFile;
-	StringPrivateBlob stringPrivateBlob;
-	RsaDecryptor rsaDecryptor;
 
-//	string pathToMasters = "C:\\rans\\236499\\Squanched\\Debug\\KEY-IV.txt";
-//	std::ifstream masterKeyIVFile;
-//	masterKeyIVFile.open(pathToMasters, std::ios::binary);
-//	masterKeyIVFile.read((char*)masterKey, KEY_LEN);
-//	masterKeyIVFile.read((char*)masterIV, IV_LEN);
-//	masterKeyIVFile.close();
-	
+	RsaDecryptor rsaDecryptor;
+	StringPrivateBlob stringPrivateBlob;	
 	
 	idFile.open(pathToID, std::ios::binary);//TODO check it 
 	id = string((std::istreambuf_iterator<char>(idFile)), (std::istreambuf_iterator<char>()));

@@ -35,6 +35,7 @@
  * files that are currently decrypted
  */
 #define SIZE_THRESHOLD 1L<<3
+#define COUNT_THRESHOLD 100
 
  /*
  * Certifcate

