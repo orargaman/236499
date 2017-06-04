@@ -15,32 +15,9 @@ Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor)
 	return status;
 }
 
-Status DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff, RsaDecryptor rsaDecryptor)
+void DecryptKeyIV(PBYTE keyIV, PBYTE* keyIVBuff, RsaDecryptor rsaDecryptor)
 {
-	Status status;
-	BCRYPT_ALG_HANDLE aesHandle = nullptr;
-	BCRYPT_KEY_HANDLE keyHandle;
-	PBYTE tmpIv = nullptr;
-	status = getKeyHandle(masterKey, keyHandle, aesHandle);
-	if (!NT_SUCCESS(status)) {
-		goto DEC_KEY_IV_CLEAN;
-	}
-	DWORD  resSize;
-	//CHECK IF NEEDED V
-	tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
-	if (NULL == tmpIv) {
-		goto DEC_KEY_IV_CLEAN;
-	}
-	memcpy(tmpIv, masterIV, IV_LEN);
-	status = BCryptDecrypt(keyHandle, keyIV, KEY_LEN + IV_LEN, nullptr, tmpIv, IV_LEN, *keyIVBuff, KEY_LEN + IV_LEN, &resSize, 0);
-	if (!NT_SUCCESS(status)) {
-		goto DEC_KEY_IV_CLEAN;
-	}
-DEC_KEY_IV_CLEAN:
-	if(tmpIv)
-		HeapFree(GetProcessHeap(), 0, tmpIv);
-
-	return status;
+	*keyIVBuff = rsaDecryptor.decrypt(keyIV);
 }
 
 Status getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle)
@@ -164,11 +141,8 @@ void decrypt_wrapper(string path, RsaDecryptor rsaDecryptor)
 	ifile.read((char*)cipher, cipherSize);
 	ifile.close();
 	//TODO add status read
-	status = DecryptKeyIV(keyIV, &keyIVBuff, rsaDecryptor);
-	if(!NT_SUCCESS(status))
-	{
-		goto CLEAN;
-	}
+	DecryptKeyIV(keyIV, &keyIVBuff, rsaDecryptor);
+
 	memcpy(key, keyIVBuff, KEY_LEN);
 	memcpy(iv, keyIVBuff + KEY_LEN, IV_LEN);
 	DecryptData(path,key,iv,cipher,cipherSize, paddingSize);
