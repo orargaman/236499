@@ -19,3 +19,4 @@ string get_path_to_id();
 void parsePublicKey(const string& str, string& mod, string& exp);
 struct StringPrivateBlob parsePrivateKey(const string&  str);
 string get_path_to_ENC();
+bool getLinkTarget(const char linkFileName[], char targetPath[], int size);

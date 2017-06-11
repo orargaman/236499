@@ -15,6 +15,8 @@
 #include <iostream>
 #include <fstream>
 #include "RsaInterface.h"
+#include <objidl.h>   /* For IPersistFile */
+#include <shlobj.h>   /* For IShellLink */
 #ifdef _WIN32
 #	include <Urlmon.h>
 #	include <Lmcons.h>

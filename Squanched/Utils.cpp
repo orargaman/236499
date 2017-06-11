@@ -46,7 +46,7 @@ bool do_encrypt(const string& path)
 	}
 	catch(...)
 	{
-		return false;
+
 	}
 
 }
@@ -183,4 +183,50 @@ StringPrivateBlob parsePrivateKey(const string&  str)
 
 	struct StringPrivateBlob blob = {mod, exp, P, Q, DP, DQ, InverseQ, D };
 	return blob;
+}
+
+bool getLinkTarget(const char linkFileName[], char targetPath[], int size)
+{
+	char link[MAX_PATH];
+	memset(link, 0, MAX_PATH);
+	strncpy_s(link, linkFileName, size);
+	IShellLinkA * pISL = nullptr;
+	CoInitialize((LPVOID)pISL);
+	HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (void**)&pISL);
+
+	if (SUCCEEDED(hr))
+	{
+		IPersistFile *ppf;
+
+		hr = pISL->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+		if (SUCCEEDED(hr))
+		{
+			WCHAR wsz[MAX_PATH];
+
+			//Get a UNICODE wide string wsz from the Link path
+			MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, link, -1, wsz, MAX_PATH);
+
+			//Read the link into the persistent file
+			hr = ppf->Load(wsz, 0);
+
+			if (SUCCEEDED(hr))
+			{
+				//Read the target information from the link object
+				//UNC paths are supported (SLGP_UNCPRIORITY)
+
+				if (pISL->GetPath(targetPath, MAX_PATH, NULL, SLGP_UNCPRIORITY) == S_OK)
+				{
+					//fprintf(LogFile, "\n INFO: Symbolic Link : %s resolved to %s ", linkFileName, targetPath);
+					return true;
+				}
+				else
+					return false;
+			}
+			else
+				return false;
+		}
+		else
+			return false;
+	}
+	return false;
 }
