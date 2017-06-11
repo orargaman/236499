@@ -14,6 +14,9 @@
 */
 #define OPEN_FILE true
 
+
+#define CPU_CYCLES_PERCENT 100
+
 #define IV_LEN (128/8)
 
 /*

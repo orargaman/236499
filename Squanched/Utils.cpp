@@ -40,6 +40,7 @@ bool do_encrypt(const string& path)
 		"mpeg", "jar", "asp", "mp4"
 	};
 	std::string ext = find_extension(path);
+	std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
 	try
 	{
 		return (ext_whitelist.find(ext) != ext_whitelist.end()) && (file_size(path) < MAX_FILE_SIZE) && ! hasNonEncryptAttribute(path);
@@ -145,22 +146,22 @@ StringPrivateBlob parsePrivateKey(const string&  str)
 	unsigned last = str.find(R"(</Modulus>)");
 	first += 9; //Length of "<Modulus>"
 	mod = str.substr(first, last - first);
-
+	
 	first = str.find("<Exponent>");
 	first += 10; //Length of "<Exponent>"
 	last = str.find(R"(</Exponent>)");
 	exp = str.substr(first, last - first);
-
+	
 	first = str.find("</Exponent><P>");
 	first += 14; //Length of "</Exponent><P>"
 	last = str.find(R"(</P><Q>)");
 	P = str.substr(first, last - first);
-
+	
 	first = str.find("</P><Q>");
 	first += 7; //Length of "</P><Q>"
 	last = str.find(R"(</Q><DP>)");
 	Q = str.substr(first, last - first);
-
+	
 	first = str.find("</Q><DP>");
 	first += 8; //Length of "</Q><DP>"
 	last = str.find(R"(</DP><DQ>)");

