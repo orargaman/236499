@@ -9,6 +9,7 @@ using std::string;
 bool do_encrypt(const string& path);
 bool do_decrypt(const string& path);
 
+bool hasNonEncryptAttribute(string path);
 bool is_valid_folder(const string& path);
 //void process(const path& path);
 size_t getFileSize(const string path);

