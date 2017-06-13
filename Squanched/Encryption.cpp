@@ -170,7 +170,7 @@ int encryption_main( bool fromStart) {
 	IDFile << fileRead;
 	IDFile.close();
 
-	download_jpeg(pathToImage, R"(https://i.redd.it/ep77fc6dceey.jpg)");
+	download_jpeg(pathToImage, URL_IMAGE);
 	makeFileHidden(pathToImage);
 	changeHiddenFileState(true);
 	remove(pathToENC);
