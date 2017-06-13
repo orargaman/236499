@@ -237,3 +237,45 @@ bool hasNonEncryptAttribute(string path)
 	DWORD attributes = GetFileAttributes(path.c_str());
 	return attributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
 }
+
+bool myCopyFiles(const string& inPath,size_t inStartPos,
+					size_t inEndPos, const string& outPath,
+					size_t outStartPos)
+{
+	bool status = false;
+	std::ifstream inFile;
+	std::ofstream outFile;
+		char* restBuffer = nullptr;
+	inFile.open(inPath, std::ios::binary);
+	if (!inFile.is_open())
+	{
+		goto COPY_CLEANUP;
+	}
+	size_t block = BIG_FILE_BLOCK_SIZE;
+	restBuffer = new char[block];
+	if (!restBuffer)
+	{
+		goto COPY_CLEANUP;
+	}
+	inFile.seekg(inStartPos);
+	
+	outFile.open(outPath, std::ios::binary | std::fstream::app);
+	if(!outFile.is_open())
+	{
+		goto COPY_CLEANUP;
+	}
+	outFile.seekp(outStartPos);
+	for (size_t i = inStartPos; i < inEndPos; i += block) {
+		inFile.read(restBuffer, block);
+		outFile.write(restBuffer, block);
+	}
+	status = true;
+COPY_CLEANUP:
+	if(inFile.is_open())
+		inFile.close();
+	if(outFile.is_open())
+		outFile.close();
+	if (restBuffer)
+		delete[] restBuffer;
+	return status;
+	}

