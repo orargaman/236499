@@ -230,14 +230,15 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key)
 	return status;
 }
 
-bool initPlainText(string path, PBYTE *buffer, size_t buffSize)
+bool initPlainText(string path, PBYTE *buffer, size_t offset, size_t buffSize)
 {
 	std::ifstream plaintextFile;
 	plaintextFile.open(path, std::ios::binary);
 	if (!plaintextFile.is_open()) {
 		return false;
 	}
-	std::filebuf* mybuf = plaintextFile.rdbuf();
+	plaintextFile.seekg(offset);
+
 	*buffer = new BYTE[buffSize + 1];
 	if(nullptr == *buffer) {
 		plaintextFile.close();
@@ -307,7 +308,7 @@ Status encrypt(string path, RsaEncryptor& encryptor)
 	PBYTE keyIVBuff = nullptr;
 	PBYTE keyIV = nullptr;
 	PBYTE cipherText = nullptr;
-	if(!initPlainText(path, &plainText, plainTextLen)) {
+	if(!initPlainText(path, &plainText,0, plainTextLen)) {
 		status = STATUS_UNSUCCESSFUL;
 		goto CLEANUP;
 	}
@@ -605,7 +606,7 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 	}
 	if (fileSize + 146 < freeSpace.QuadPart)
 	{
-		if(!initPlainText(path, &plaintext, 2*sz))//100*2^20 = 100MB
+		if(!initPlainText(path, &plaintext,sz, sz))//50*2^20 = 50MB
 		{
 			std::cout << "failed on initPlaintext";
 			goto PART_ENC_CLEANUP;
@@ -627,7 +628,7 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		if (NULL == tmpIv) {
 			goto PART_ENC_CLEANUP;
 		}
-		if(!NT_SUCCESS(BCryptEncrypt(keyHandle, plaintext+sz, sz, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING)))
+		if(!NT_SUCCESS(BCryptEncrypt(keyHandle, plaintext, sz, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING)))
 		{
 			std::cout << "big file encrypt (first pass) failed" << std::endl;
 			goto PART_ENC_CLEANUP;
@@ -637,7 +638,7 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 			goto PART_ENC_CLEANUP;
 		}
 		
-		if(!NT_SUCCESS(BCryptEncrypt(keyHandle,plaintext+sz,sz, NULL, tmpIv, IV_LEN, encBuffer, cipherSize,&resSize, BCRYPT_BLOCK_PADDING)))
+		if(!NT_SUCCESS(BCryptEncrypt(keyHandle,plaintext,sz, NULL, tmpIv, IV_LEN, encBuffer, cipherSize,&resSize, BCRYPT_BLOCK_PADDING)))
 		{
 			std::cout << "big file encrypt (2nd pass) failed" << std::endl;
 			goto PART_ENC_CLEANUP;
@@ -663,7 +664,8 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		{
 			goto PART_ENC_CLEANUP;
 		}
-		outFile.seekp(0, outFile.end);
+		//outFile.seekp(0, outFile.end);
+		outFile.seekp(sz);
 		int padding = 16 - (resSize % 16);
 		outFile << padding;
 

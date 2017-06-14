@@ -265,9 +265,11 @@ bool myCopyFiles(const string& inPath,size_t inStartPos,
 		goto COPY_CLEANUP;
 	}
 	outFile.seekp(outStartPos);
+	size_t delta;
 	for (size_t i = inStartPos; i < inEndPos; i += block) {
-		inFile.read(restBuffer, block);
-		outFile.write(restBuffer, block);
+		delta = (i + block <= inEndPos) ? block : inEndPos - i;//don't overlap
+		inFile.read(restBuffer, delta);
+		outFile.write(restBuffer, delta);
 	}
 	status = true;
 COPY_CLEANUP:
