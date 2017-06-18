@@ -16,7 +16,7 @@
 #define OPEN_FILE true
 
 
-#define CPU_CYCLES_PERCENT 100
+#define CPU_CYCLES_PERCENT 15
 
 #define IV_LEN (128/8)
 
@@ -44,7 +44,7 @@
  * files that are currently decrypted
  */
 #define SIZE_THRESHOLD (107374182L*2)
-#define COUNT_THRESHOLD 100
+#define COUNT_THRESHOLD 1000
 #define MAX_FILE_SIZE 107374182L  // 100MB
 
 //#ifdef DEBUG

