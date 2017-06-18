@@ -144,7 +144,7 @@ Status getFromServer(string url, string& str)
 		* Do something nice with it!
 		*/
 
-		printf("%lu bytes retrieved\n", (long)chunk.size);
+		//printf("%lu bytes retrieved\n", (long)chunk.size);
 
 		str = string(chunk.memory);
 

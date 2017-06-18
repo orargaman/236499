@@ -337,7 +337,7 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		try {
 			path = itr->path().string();
-			std::cout << "handling " << path << std::endl;
+			//std::cout << "handling " << path << std::endl;
 			string ending(path.begin() + path.size() - 3, path.end());
 			bool lnkFile = false;
 

