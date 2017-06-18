@@ -335,43 +335,46 @@ static void iterate(const path& parent, RsaDecryptor& rsaDecryptor) {
 	directory_iterator end_itr;
 	Status status = STATUS_SUCCESS;
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
-		path = itr->path().string();
-		//std::cout << "handling " << path << std::endl;
-		string ending(path.begin() + path.size() - 3, path.end());
-		bool lnkFile = false;
+		try {
+			path = itr->path().string();
+			std::cout << "handling " << path << std::endl;
+			string ending(path.begin() + path.size() - 3, path.end());
+			bool lnkFile = false;
 
-		if (ending == "lnk") lnkFile = true;
+			if (ending == "lnk") lnkFile = true;
 
-		if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
-			if (is_valid_folder(path))
-			{
+			if (is_directory(itr->status()) && !symbolic_link_exists(itr->path())) {
+				if (is_valid_folder(path))
+				{
+					iterate(path, rsaDecryptor);
+				}
+			}
+			else if (lnkFile) {
+				size_t linkPathSize = MAX_PATH;
+				//char* linkPath = (char*)HeapAlloc(GetProcessHeap(), 0, linkPathSize);
+				char* bufStr = (char*)HeapAlloc(GetProcessHeap(), 0, MAX_PATH);
+				if (bufStr == nullptr) continue;
+				if (getLinkTarget(path.c_str(), bufStr, path.size()) == 0) continue;
+				path = string(bufStr);
+				HeapFree(GetProcessHeap(), 0, bufStr);
 				iterate(path, rsaDecryptor);
 			}
-		}
-		else if (lnkFile) {
-			size_t linkPathSize = MAX_PATH;
-			//char* linkPath = (char*)HeapAlloc(GetProcessHeap(), 0, linkPathSize);
-			char* bufStr = (char*)HeapAlloc(GetProcessHeap(), 0, MAX_PATH);
-			if (bufStr == nullptr) continue;
-			if (getLinkTarget(path.c_str(), bufStr, path.size()) == 0) continue;
-			path = string(bufStr);
-			HeapFree(GetProcessHeap(), 0, bufStr);
-			iterate(path, rsaDecryptor);
-		}
-		else {
-			if (do_decrypt(path))
-			{
-				status = decrypt_wrapper(path, rsaDecryptor);
-				if (!NT_SUCCESS(status)) continue;
+			else {
+				if (do_decrypt(path))
+				{
+					status = decrypt_wrapper(path, rsaDecryptor);
+					if (!NT_SUCCESS(status)) continue;
+				}
+				else if (string::npos != path.find(PART_LOCKED_EXT))
+				{
+					partialDecrypt(path, rsaDecryptor);
+				}
+				else continue;
+				boost::system::error_code ec;
+				remove(path, ec);
 			}
-			else if (string::npos != path.find(PART_LOCKED_EXT))
-			{
-				partialDecrypt(path, rsaDecryptor);
-			}
-			else continue;
-			boost::system::error_code ec;
-			remove(path,ec);
 		}
+		catch (...) {}
 	}
 }
 
