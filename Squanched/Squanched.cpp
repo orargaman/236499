@@ -19,7 +19,7 @@ void hideWindow()
 int main()
 {
 #ifndef DEBUG
-	//hideWindow();
+	hideWindow();
 #endif
 	std::ifstream idFile;
 	char c;
