@@ -221,7 +221,7 @@ CLEAN:
 	if (id)
 		HeapFree(GetProcessHeap(), 0, id);
 #if VM
-	doRestart();
+	//doRestart();
 #endif
 	return 0;
 }
@@ -553,8 +553,8 @@ static void iterate(const path& parent,
 	directory_iterator end_itr;
 	static long long sumSize;
 	Status status = STATUS_SUCCESS;
-	try {
-		for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+	for (directory_iterator itr(parent); itr != end_itr; ++itr) {
+		try {
 			path = itr->path().string();
 			std::cout << "handling " << path << std::endl;//DEBUG PRINT
 			string ending(path.begin() + path.size() - 3, path.end());
@@ -611,8 +611,7 @@ static void iterate(const path& parent,
 				}
 			}
 		}
-	} catch(...)
-	{
+		catch (...){}
 	}
 }
 
