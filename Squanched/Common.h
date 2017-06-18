@@ -2,7 +2,7 @@
 
 #define  _WIN32_WINNT 0x0500
 #include <windows.h>
-
+#include <tchar.h>
 #include <boost/filesystem/operations.hpp>
 #include <winternl.h>
 #include <ntstatus.h>
